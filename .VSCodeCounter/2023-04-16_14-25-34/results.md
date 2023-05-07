@@ -10,7 +10,7 @@ Summary / [Details](details.md) / [Diff Summary](diff.md) / [Diff Details](diff-
 
 ## Languages
 | language | files | code | comment | blank | total |
-| :--- | ---: | ---: | ---: | ---: | ---: |
+| :--- | :--: | ---: | ---: | ---: | ---: |
 | TOML | 1 | 5 | 1 | 3 | 9 |
 | Rust | 3 | 3 | 0 | 2 | 5 |
 

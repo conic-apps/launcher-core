@@ -1,21 +1,21 @@
 use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub struct MinecraftLocation {
-    root: String,
-    libraries: String,
-    assets: String,
-    resourcepacks: String,
-    mods: String,
-    logs: String,
-    latest_log: String,
-    saves: String,
-    versions: String,
-    options: String,
-    screenshots: String,
+    pub root: String,
+    pub libraries: String,
+    pub assets: String,
+    pub resourcepacks: String,
+    pub mods: String,
+    pub logs: String,
+    pub latest_log: String,
+    pub saves: String,
+    pub versions: String,
+    pub options: String,
+    pub screenshots: String,
 }
 
 impl MinecraftLocation {
-    fn new(root: &str) -> MinecraftLocation {
+    pub fn new(root: &str) -> MinecraftLocation {
         let path = Path::new(root);
         MinecraftLocation {
             root: String::from(root),
@@ -33,7 +33,7 @@ impl MinecraftLocation {
     }
 }
 
-fn get_path(path: PathBuf) -> String {
+pub fn get_path(path: PathBuf) -> String {
     match path.to_str() {
         None => panic!("New path is noe a valid UTF-8 sequence!"),
         Some(s) => String::from(s),
@@ -41,6 +41,6 @@ fn get_path(path: PathBuf) -> String {
 }
 #[test]
 fn test() {
-    let a = MinecraftLocation::new("tmp");
+    let a = MinecraftLocation::new("/home/CD-DVD/test");
     println!("{:#?}", a);
 }
