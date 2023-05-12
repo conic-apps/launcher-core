@@ -1,23 +1,23 @@
-// used to parse version.json
-
 use crate::utils::platform::PlatformInfo;
 use regex::Regex;
 use serde_json as JSON;
 
 #[derive(Debug)]
-pub struct AssetIndex {
+pub struct AssetIndexDownload {
     pub id: String,
     pub sha1: String,
     pub size: i64,
     pub total_size: i64,
     pub url: String,
 }
+
 #[derive(Debug)]
 pub struct Download {
     pub sha1: String,
     pub size: i64,
     pub url: String,
 }
+
 #[derive(Debug)]
 pub struct Artifact {
     pub name: String,
@@ -26,6 +26,7 @@ pub struct Artifact {
     pub size: i64,
     pub url: String,
 }
+
 #[derive(Debug)]
 pub struct Logging {
     pub argument: String,
@@ -35,6 +36,7 @@ pub struct Logging {
     pub url: String,
     pub logging_type: String,
 }
+
 #[derive(Debug)]
 pub enum VersionType {
     Release,
@@ -43,15 +45,17 @@ pub enum VersionType {
     OldBeta,
     Unknown,
 }
+
 #[derive(Debug)]
 pub struct ResolvedArguments {
     pub game: String,
     pub jvm: String,
 }
+
 #[derive(Debug)]
 pub struct Version {
     pub arguments: ResolvedArguments,
-    pub asset_index: AssetIndex,
+    pub asset_index: AssetIndexDownload,
     pub assets: String,
     pub compliance_level: i64,
     pub client: Download,
@@ -65,6 +69,7 @@ pub struct Version {
     pub version_type: VersionType,
     pub root: JSON::Value,
 }
+
 impl Version {
     /**
      * Parse vanilla version.json file.
@@ -73,12 +78,12 @@ impl Version {
         let root: JSON::Value = JSON::from_str(version_json).unwrap();
         let platform_info = PlatformInfo::get();
         Version {
-            asset_index: AssetIndex {
+            asset_index: AssetIndexDownload {
                 id: String::from(root["assetIndex"]["id"].as_str().unwrap()),
                 sha1: String::from(root["assetIndex"]["sha1"].as_str().unwrap()),
                 size: root["assetIndex"]["size"].as_i64().unwrap(),
                 total_size: root["assetIndex"]["totalSize"].as_i64().unwrap(),
-                url: String::from(root["assetIndex"]["id"].as_str().unwrap()),
+                url: String::from(root["assetIndex"]["url"].as_str().unwrap()),
             },
             compliance_level: root["complianceLevel"].as_i64().unwrap(),
             assets: String::from(root["assets"].as_str().unwrap()),
@@ -126,9 +131,37 @@ impl Version {
     }
 }
 
-/**
- * Check if all the rules in Rule[] are acceptable in certain OS platform and features.
- */
+#[derive(Debug, serde::Deserialize)]
+pub struct LatestVersion {
+    pub release: String,
+    pub snapshot: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct VersionInfo {
+    pub id: String,
+    pub r#type: String,
+    pub url: String,
+    pub time: String,
+    pub releaseTime: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct VersionManifest {
+    pub latest: LatestVersion,
+    pub versions: Vec<VersionInfo>,
+}
+
+impl VersionManifest {
+    pub async fn new() -> VersionManifest {
+        let response = reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest.json")
+            .await
+            .unwrap();
+        response.json::<VersionManifest>().await.unwrap()
+    }
+}
+
+/// Check if all the rules in Rule[] are acceptable in certain OS platform and features.
 fn check_allowed(rules: &Vec<JSON::Value>, platform: &PlatformInfo) -> bool {
     // by default it's allowed
     if rules.len() == 0 {
