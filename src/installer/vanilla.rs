@@ -34,11 +34,11 @@ pub enum TaskState {
 #[derive(Clone)]
 /// 用来保存任务执行的状态
 pub struct Task {
-    name: String,
-    total: Arc<AtomicUsize>,
-    progress: Arc<AtomicUsize>,
-    path: String,
-    state: TaskState,
+    pub name: String,
+    pub total: Arc<AtomicUsize>,
+    pub progress: Arc<AtomicUsize>,
+    pub path: String,
+    pub state: TaskState,
 }
 
 impl Task {
@@ -111,7 +111,7 @@ pub async fn generate_assets_download_list(
     assets
 }
 
-async fn install(version_id: &str, minecraft_location: MinecraftLocation, task: Task) {
+pub async fn install(version_id: &str, minecraft_location: MinecraftLocation, task: Task) {
     let versions = VersionManifest::new().await.versions;
     let version_metadata = versions
         .into_iter()
@@ -153,7 +153,6 @@ async fn install(version_id: &str, minecraft_location: MinecraftLocation, task: 
         download_list,
         task.total.load(Ordering::SeqCst),
         task.progress,
-        false,
     )
     .await;
 }

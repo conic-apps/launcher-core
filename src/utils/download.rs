@@ -35,7 +35,6 @@ pub async fn download_files(
     download_tasks: Vec<Download>,
     total: usize,
     counter: Arc<AtomicUsize>,
-    filter_existing: bool,
 ) {
     // todo: 已存在文件使用线程池验证哈希，然后修改原有的下载列表
     let stream = futures::stream::iter(download_tasks)
