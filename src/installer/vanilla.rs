@@ -1,3 +1,13 @@
+use std::{
+    print, println,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    thread,
+    time::Duration,
+};
+
 use crate::utils::{download, versions::VersionManifest};
 use serde_json as JSON;
 use tokio::io::AsyncWriteExt;
@@ -10,6 +20,38 @@ use crate::utils::{
     folder::{get_path, MinecraftLocation},
     versions::{self, Artifact, AssetIndexDownload},
 };
+
+#[derive(Clone)]
+pub enum TaskState {
+    Idle,
+    Running,
+    Cancelled,
+    Paused,
+    Succeed,
+    Failed,
+}
+
+#[derive(Clone)]
+/// 用来保存任务执行的状态
+pub struct Task {
+    name: String,
+    total: Arc<AtomicUsize>,
+    progress: Arc<AtomicUsize>,
+    path: String,
+    state: TaskState,
+}
+
+impl Task {
+    pub fn new(name: &str) -> Task {
+        Task {
+            name: name.to_string(),
+            total: Arc::new(AtomicUsize::new(0)),
+            progress: Arc::new(AtomicUsize::new(0)),
+            path: "".to_string(),
+            state: TaskState::Idle,
+        }
+    }
+}
 
 // todo: 把所有生成下载列表用的东西放进impl里
 
@@ -69,8 +111,7 @@ pub async fn generate_assets_download_list(
     assets
 }
 
-pub async fn install(version_id: &str, minecraft_location: MinecraftLocation) {
-    println!("1");
+async fn install(version_id: &str, minecraft_location: MinecraftLocation, task: Task) {
     let versions = VersionManifest::new().await.versions;
     let version_metadata = versions
         .into_iter()
@@ -90,7 +131,6 @@ pub async fn install(version_id: &str, minecraft_location: MinecraftLocation) {
     tokio::fs::create_dir_all(version_json_path.parent().unwrap())
         .await
         .unwrap();
-    println!("1");
     let mut file = tokio::fs::File::create(&version_json_path).await.unwrap();
     file.write_all(version_json_data.as_bytes()).await.unwrap();
     let mut download_list = Vec::new();
@@ -108,12 +148,32 @@ pub async fn install(version_id: &str, minecraft_location: MinecraftLocation) {
     ));
     download_list
         .extend(generate_assets_download_list(version.asset_index, &minecraft_location).await);
-    println!("1");
-    download_files(download_list, false).await;
+    task.total.store(download_list.len(), Ordering::SeqCst);
+    download_files(
+        download_list,
+        task.total.load(Ordering::SeqCst),
+        task.progress,
+        false,
+    )
+    .await;
 }
 
 #[tokio::test]
 async fn test() {
-    let version_id = "1.19.4";
-    install(version_id, MinecraftLocation::new("/home/brokendeer/桌面/0000")).await;
+    // todo: 支持模组加载器，但fabric和quilt必须事先安装好原版游戏
+    // so Optifine, Fuck you
+    let task = Task::new("install-game");
+    let task_clone = task.clone();
+    thread::spawn(move || loop {
+        let progress = task_clone.progress.load(Ordering::SeqCst);
+        let total = task_clone.total.load(Ordering::SeqCst);
+        let percentage = if total == 0 {
+            0.0
+        } else {
+            progress as f64 / total as f64 * 100.0
+        };
+        println!("{}% {}/{}", format!("{:.2}", percentage), progress, total);
+        thread::sleep(Duration::from_micros(50000));
+    });
+    install("1.19.4", MinecraftLocation::new("test"), task).await;
 }

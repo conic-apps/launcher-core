@@ -31,37 +31,41 @@ async fn download(download_task: Download) {
 
 pub fn filter_existing_files() {}
 
-pub async fn download_files(download_tasks: Vec<Download>, filter_existing: bool) {
+pub async fn download_files(
+    download_tasks: Vec<Download>,
+    total: usize,
+    counter: Arc<AtomicUsize>,
+    filter_existing: bool,
+) {
     // todo: 已存在文件使用线程池验证哈希，然后修改原有的下载列表
-    let task_count = Arc::new(AtomicUsize::new(download_tasks.len()));
     let stream = futures::stream::iter(download_tasks)
         .map(|download_task| {
-            let task_count = Arc::clone(&task_count);
+            let counter = Arc::clone(&counter);
             async move {
                 let result = download(download_task).await;
-                task_count.fetch_sub(1, Ordering::SeqCst);
+                counter.fetch_add(1, Ordering::SeqCst);
                 result
             }
         })
         .buffer_unordered(16);
     stream
         .for_each_concurrent(1, |_| async {
-            println!("还剩{}个", task_count.load(Ordering::SeqCst));
+            // println!("还剩{}个", task_count.load(Ordering::SeqCst));
         })
         .await;
-    if task_count.load(Ordering::SeqCst) == 0 {
+    if counter.load(Ordering::SeqCst) == total {
         println!("完成力")
     }
 }
 
-#[tokio::test]
-async fn test_download_files() {
-    let mut download_tasks = vec![];
-    for i in 0..200 {
-        download_tasks.push(Download {
-            url: "https://speed.hetzner.de/100MB.bin".to_string(),
-            file: format!("/home/CD-DVD/test/test-{}.bin", i + 1),
-        });
-    }
-    download_files(download_tasks, false).await;
-}
+// #[tokio::test]
+// async fn test_download_files() {
+//     let mut download_tasks = vec![];
+//     for i in 0..200 {
+//         download_tasks.push(Download {
+//             url: "https://speed.hetzner.de/100MB.bin".to_string(),
+//             file: format!("/home/CD-DVD/test/test-{}.bin", i + 1),
+//         });
+//     }
+//     download_files(download_tasks, false).await;
+// }

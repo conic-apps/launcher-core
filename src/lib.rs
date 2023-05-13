@@ -2,6 +2,7 @@ mod launcher {
     pub mod default;
 }
 mod installer {
+    pub mod task;
     pub mod vanilla;
 }
 mod utils {
