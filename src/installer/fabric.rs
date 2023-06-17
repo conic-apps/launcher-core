@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{format, fs, io::copy, println, vec};
+use std::{format, fs, vec};
 
 use crate::utils::folder::MinecraftLocation;
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FabricArtifactVersion {
-    pub gameVersion: Option<String>,
+    pub game_version: Option<String>,
     pub separator: Option<String>,
     pub build: Option<usize>,
     pub maven: String,
@@ -21,17 +22,19 @@ pub struct FabricArtifacts {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FabricLoaderArtifact {
     pub loader: FabricArtifactVersion,
     pub intermediary: FabricArtifactVersion,
-    pub launcherMeta: LauncherMeta,
+    pub launcher_meta: LauncherMeta,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LauncherMeta {
     pub version: usize,
     pub libraries: LauncherMetaLibraries,
-    pub mainClass: Value,
+    pub main_class: Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -155,7 +158,7 @@ pub async fn install_fabric(
         }
     }
     if let None = id {
-        if let Some(yarn) = yarn.clone() {
+        if let Some(_) = yarn.clone() {
             id = Some(format!(
                 "{}-loader{}",
                 minecraft_version, loader.loader.version
@@ -183,23 +186,23 @@ pub async fn install_fabric(
             url: Some(String::from("https://maven.fabricmc.net/")),
         });
     }
-    libraries.extend(loader.launcherMeta.libraries.common.iter().cloned());
+    libraries.extend(loader.launcher_meta.libraries.common.iter().cloned());
     match side {
         FabricInstallSide::Client => {
-            libraries.extend(loader.launcherMeta.libraries.client.iter().cloned())
+            libraries.extend(loader.launcher_meta.libraries.client.iter().cloned())
         }
         FabricInstallSide::Server => {
-            libraries.extend(loader.launcherMeta.libraries.server.iter().cloned())
+            libraries.extend(loader.launcher_meta.libraries.server.iter().cloned())
         }
     }
     let main_class = match side {
-        FabricInstallSide::Client => loader.launcherMeta.mainClass["client"]
+        FabricInstallSide::Client => loader.launcher_meta.main_class["client"]
             .as_str()
-            .unwrap_or(loader.launcherMeta.mainClass.as_str().unwrap_or(""))
+            .unwrap_or(loader.launcher_meta.main_class.as_str().unwrap_or(""))
             .to_string(),
-        FabricInstallSide::Server => loader.launcherMeta.mainClass["server"]
+        FabricInstallSide::Server => loader.launcher_meta.main_class["server"]
             .as_str()
-            .unwrap_or(loader.launcherMeta.mainClass.as_str().unwrap_or(""))
+            .unwrap_or(loader.launcher_meta.main_class.as_str().unwrap_or(""))
             .to_string(),
     };
     let inherits_from = options.inherits_from.unwrap_or(minecraft_version);
@@ -214,13 +217,14 @@ pub async fn install_fabric(
         }
     }
     #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
     struct FabricVersionJSON {
         id: String,
-        inheritsFrom: String,
-        mainClass: String,
+        inherits_from: String,
+        main_class: String,
         libraries: String,
         arguments: FabricVersionJSONArg,
-        releaseTime: String,
+        release_time: String,
         time: String,
     }
     #[derive(Serialize)]
@@ -230,14 +234,14 @@ pub async fn install_fabric(
     }
     let version_json = FabricVersionJSON {
         id: id.clone().unwrap_or("".to_string()),
-        inheritsFrom: inherits_from,
-        mainClass: main_class,
+        inherits_from,
+        main_class,
         libraries: serde_json::to_string(&libraries).unwrap_or("".to_string()),
         arguments: FabricVersionJSONArg {
             game: vec![],
             jvm: vec![],
         },
-        releaseTime: "2023-05-13T15:58:54.493Z".to_string(),
+        release_time: "2023-05-13T15:58:54.493Z".to_string(),
         time: "2023-05-13T15:58:54.493Z".to_string(),
     };
     let json_data = serde_json::to_string_pretty(&version_json)
@@ -256,9 +260,9 @@ async fn test() {
         inherits_from: None,
         version_id: None,
         size: None,
-        yarn_version: None
+        yarn_version: None,
     };
     let location = MinecraftLocation::new("test");
     // println!("{:#?}",a);
-        install_fabric(a, location, options).await;
+    install_fabric(a, location, options).await;
 }
