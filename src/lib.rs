@@ -10,7 +10,10 @@ pub mod installer {
 pub mod utils {
     pub mod download;
     pub mod folder;
+    pub mod math;
+}
+
+pub mod core {
+    pub mod version;
     pub mod platform;
-    pub mod versions;
-    mod test;
 }
