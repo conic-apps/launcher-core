@@ -8,7 +8,38 @@ use crate::utils::folder::MinecraftLocation;
 
 use super::platform::PlatformInfo;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct LatestVersion {
+    pub release: String,
+    pub snapshot: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionInfo {
+    pub id: String,
+    pub r#type: String,
+    pub url: String,
+    pub time: String,
+    pub release_time: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct VersionManifest {
+    pub latest: LatestVersion,
+    pub versions: Vec<VersionInfo>,
+}
+
+impl VersionManifest {
+    pub async fn new() -> VersionManifest {
+        let response = reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest.json")
+            .await
+            .unwrap();
+        response.json::<VersionManifest>().await.unwrap()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Download {
     pub sha1: String,
     pub size: u64,
@@ -25,7 +56,16 @@ pub struct AssetIndex {
     pub total_size: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct AssetIndexObjectInfo {
+    pub hash: String,
+    pub size: u32,
+}
+
+// #[derive(Debug, Clone, Deserialize, PartialEq)]
+pub type AssetIndexObject = HashMap<String, AssetIndexObjectInfo>;
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Artifact {
     pub sha1: String,
     pub size: u64,
@@ -33,31 +73,31 @@ pub struct Artifact {
     pub path: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct LoggingFile {
     pub size: u64,
     pub url: String,
     pub id: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct NormalLibrary {
     pub name: String,
     pub downloads: HashMap<String, Artifact>,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Rule {
     pub action: String,
     pub os: Option<Platform>,
     pub features: Option<HashMap<String, bool>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Extract {
     pub exclude: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct NativeLibrary {
     pub name: String,
     pub downloads: HashMap<String, Artifact>,
@@ -67,14 +107,14 @@ pub struct NativeLibrary {
     pub natives: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct PlatformSpecificLibrary {
     pub name: String,
     pub downloads: HashMap<String, Artifact>,
     pub rules: Vec<Rule>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct LegacyLibrary {
     pub name: String,
     pub url: Option<String>,
@@ -83,7 +123,7 @@ pub struct LegacyLibrary {
     pub checksums: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub enum Library {
     Normal(NormalLibrary),
     Native(NativeLibrary),
@@ -91,33 +131,33 @@ pub enum Library {
     Legacy(LegacyLibrary),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub enum LaunchArgument {
     String(String),
     Object(serde_json::map::Map<String, serde_json::Value>),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Platform {
     pub name: String,
     pub version: Option<String>,
     // Add other platform properties if needed
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Arguments {
     game: Option<Vec<serde_json::Value>>,
     jvm: Option<Vec<serde_json::Value>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Logging {
     pub file: Download,
     pub argument: String,
     pub r#type: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct JavaVersion {
     pub component: String,
@@ -168,7 +208,7 @@ pub struct ResolvedVersion {
 /// Use `parse` to parse a Minecraft version json on the disk, and see the detail info of the version.
 ///
 /// With `ResolvedVersion`, you can use the resolved version to launch the game.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Version {
     pub id: String,
@@ -193,11 +233,11 @@ pub struct Version {
 }
 
 impl Version {
-    pub fn new(raw: &str) -> Result<Version, serde_json::Error> {
+    pub fn from_str(raw: &str) -> Result<Version, serde_json::Error> {
         serde_json::from_str(raw)
     }
 
-    pub fn get(
+    pub fn from_versions_folder(
         minecraft: MinecraftLocation,
         version_name: &str,
     ) -> Result<Version, std::io::Error> {
@@ -326,25 +366,13 @@ impl Version {
     }
 }
 
-#[test]
-fn test() {
-    let a = Version::get(
-        MinecraftLocation::new("test"),
-        "1.7.10-Forge10.13.4.1614-1.7.10",
-    )
-    .unwrap();
-    let b = a.parse(MinecraftLocation::new("test"));
-    println!("{:#?}", b)
-}
-
 #[derive(Debug, Clone)]
 pub struct ResolvedArguments {
     pub game: String,
     pub jvm: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct ResolvedLibraries(Vec<Artifact>);
+pub type ResolvedLibraries = Vec<Artifact>;
 
 fn resolve_arguments(arguments: Vec<Value>) -> String {
     let platform = &PlatformInfo::get();
@@ -418,7 +446,7 @@ fn resolve_libraries(libraries: Vec<Value>) -> ResolvedLibraries {
             path,
         });
     }
-    ResolvedLibraries(result)
+    result
 }
 
 /// Check if all the rules in Rule[] are acceptable in certain OS platform and features.

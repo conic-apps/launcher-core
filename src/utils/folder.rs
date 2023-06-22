@@ -2,7 +2,8 @@ use std::{
     format,
     path::{Path, PathBuf},
 };
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
 pub struct MinecraftLocation {
     pub root: PathBuf,
     pub libraries: PathBuf,
@@ -46,6 +47,7 @@ pub fn get_path(path: &PathBuf) -> String {
         Some(s) => String::from(s),
     }
 }
+
 #[test]
 fn test() {
     let a = MinecraftLocation::new("/home/CD-DVD/test");

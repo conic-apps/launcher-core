@@ -1,11 +1,14 @@
 use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reqwest::Client;
-use std::fs;
+use tokio::fs;
+// use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
+
+use crate::core::task::Callbacks;
 
 #[derive(Debug)]
 pub struct Download {
@@ -15,12 +18,13 @@ pub struct Download {
 
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 
-async fn download(download_task: Download) {
+pub async fn download(download_task: Download) {
     // todo: 尝试从服务器获取文件大，超过5mb分片下载
+    // todo: 错误处理
     let file_path = PathBuf::from(&download_task.file);
     let direction = file_path.parent().unwrap();
     if !direction.exists() {
-        fs::create_dir_all(&direction).unwrap()
+        fs::create_dir_all(&direction).await.unwrap()
     }
     let mut response = HTTP_CLIENT.get(&download_task.url).send().await.unwrap();
     let mut file = tokio::fs::File::create(&download_task.file).await.unwrap();
@@ -31,12 +35,10 @@ async fn download(download_task: Download) {
 
 pub fn filter_existing_files() {}
 
-pub async fn download_files(
-    download_tasks: Vec<Download>,
-    total: usize,
-    counter: Arc<AtomicUsize>,
-) {
-    // todo: 已存在文件使用线程池验证哈希，然后修改原有的下载列表
+pub async fn download_files(download_tasks: Vec<Download>, callbacks: Callbacks) {
+    let total = download_tasks.len();
+    let counter: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
+    (callbacks.on_start)();
     let stream = futures::stream::iter(download_tasks)
         .map(|download_task| {
             let counter = Arc::clone(&counter);
@@ -49,11 +51,13 @@ pub async fn download_files(
         .buffer_unordered(16);
     stream
         .for_each_concurrent(1, |_| async {
-            // println!("还剩{}个", task_count.load(Ordering::SeqCst));
+            let completed = counter.clone().load(Ordering::SeqCst);
+            (callbacks.on_progress)(completed, total);
+            //println!("{completed}/{total}");
         })
         .await;
     if counter.load(Ordering::SeqCst) == total {
-        println!("完成力")
+        (callbacks.on_succeed)();
     }
 }
 
