@@ -1,0 +1,52 @@
+use std::collections::HashMap;
+
+use serde_json::Value;
+
+use crate::core::version::Version;
+
+pub struct PostProcessor {
+    /// The executable jar path
+    pub jar: String,
+
+    /// The classpath to run
+    pub classpath: Vec<String>,
+    pub args: Vec<String>,
+    pub outputs: Option<HashMap<String, String>>,
+    pub sides: Option<Vec<String>>,
+}
+
+pub struct InstallProfile {
+    pub spec: Option<i32>,
+    /// The type of this installation, like "forge"
+    pub profile: String,
+
+    /// The version of this installation
+    pub version: String,
+
+    /// The version json path
+    pub json: String,
+
+    /// The maven artifact name: \<org\>:\<artifact-id\>:\<version\>
+    pub path: String,
+
+    /// The minecraft version
+    pub minecraft: String,
+
+    /// The processor shared variables. The key is the name of variable to replace.
+    ///
+    /// The value of client/server is the value of the variable.
+    pub data: Option<HashMap<String, InstallProfileData>>,
+
+    /// The post processor. Which require java to run.
+    pub processors: Option<Vec<PostProcessor>>,
+
+    /// The required install profile libraries
+    pub libraries: Value,
+
+    pub version_info: Option<Version>,
+}
+
+pub struct InstallProfileData {
+    pub client: String,
+    pub server: String,
+}
