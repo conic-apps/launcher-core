@@ -5,3 +5,5 @@
 ![](https://img.shields.io/badge/V%20Me-50-red)
 ![](https://img.shields.io/badge/WE%20ARE-POOR-yellow)
 
+[简体中文](./README.zh.md)
+
