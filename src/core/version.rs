@@ -85,6 +85,7 @@ pub struct NormalLibrary {
     pub name: String,
     pub downloads: HashMap<String, Artifact>,
 }
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Rule {
     pub action: String,
@@ -485,3 +486,33 @@ fn check_allowed(rules: Vec<Value>, platform: &PlatformInfo) -> bool {
     }
     allow
 }
+
+pub struct LibraryInfo {
+    group_id: String,
+    artifact_id: String,
+    version: String,
+    is_snapshot: bool,
+
+    /// The file extension. Default is `jar`. Some files in forge are `zip`.
+    r#type: String,
+
+    /// The classifier. Normally, this is empty. For forge, it can be like `universal`, `installer`.
+    classifier: String,
+
+    /// The maven path.
+    pub path: String,
+
+    /// The original maven name of this library
+    pub name: String,
+}
+
+impl LibraryInfo {
+    /// Resolve the library info from the maven path.
+    ///
+    pub fn forge_maven_path(path: String) {}
+
+    /// Get the base info of the library from its name
+    /// * `lib` - The name of library of the library itself
+    pub fn from_name(lib: String) {}
+}
+

@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::core::version::Version;
 
+#[derive(Debug, Clone, Deserialize)]
 pub struct PostProcessor {
     /// The executable jar path
     pub jar: String,
@@ -15,6 +17,7 @@ pub struct PostProcessor {
     pub sides: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
 pub struct InstallProfile {
     pub spec: Option<i32>,
     /// The type of this installation, like "forge"
@@ -46,7 +49,8 @@ pub struct InstallProfile {
     pub version_info: Option<Version>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InstallProfileData {
-    pub client: String,
-    pub server: String,
+    pub client: Option<String>,
+    pub server: Option<String>,
 }
