@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::utils::folder::MinecraftLocation;
@@ -39,14 +39,14 @@ impl VersionManifest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Download {
     pub sha1: String,
     pub size: u64,
     pub url: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetIndex {
     // pub sha1: String,
@@ -145,20 +145,20 @@ pub struct Platform {
     // Add other platform properties if needed
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Arguments {
     game: Option<Vec<serde_json::Value>>,
     jvm: Option<Vec<serde_json::Value>>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Logging {
     pub file: Download,
     pub argument: String,
     pub r#type: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct JavaVersion {
     pub component: String,
@@ -209,7 +209,7 @@ pub struct ResolvedVersion {
 /// Use `parse` to parse a Minecraft version json on the disk, and see the detail info of the version.
 ///
 /// With `ResolvedVersion`, you can use the resolved version to launch the game.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Version {
     pub id: String,
@@ -236,6 +236,10 @@ pub struct Version {
 impl Version {
     pub fn from_str(raw: &str) -> Result<Version, serde_json::Error> {
         serde_json::from_str(raw)
+    }
+
+    pub fn from_value(raw: Value) -> Result<Version, serde_json::Error> {
+        serde_json::from_value(raw)
     }
 
     pub fn from_versions_folder(
@@ -488,16 +492,16 @@ fn check_allowed(rules: Vec<Value>, platform: &PlatformInfo) -> bool {
 }
 
 pub struct LibraryInfo {
-    group_id: String,
-    artifact_id: String,
-    version: String,
-    is_snapshot: bool,
+    pub group_id: String,
+    pub artifact_id: String,
+    pub version: String,
+    pub is_snapshot: bool,
 
     /// The file extension. Default is `jar`. Some files in forge are `zip`.
-    r#type: String,
+    pub r#type: String,
 
     /// The classifier. Normally, this is empty. For forge, it can be like `universal`, `installer`.
-    classifier: String,
+    pub classifier: String,
 
     /// The maven path.
     pub path: String,
@@ -507,12 +511,41 @@ pub struct LibraryInfo {
 }
 
 impl LibraryInfo {
-    /// Resolve the library info from the maven path.
-    ///
-    pub fn forge_maven_path(path: String) {}
+    // /// Resolve the library info from the maven path.
+    // ///
+    // pub fn forge_maven_path(path: String) {}
 
     /// Get the base info of the library from its name
     /// * `lib` - The name of library of the library itself
-    pub fn from_name(lib: String) {}
+    pub fn from_value(lib: &Value) -> Self {
+        let name = lib["name"].as_str().unwrap().to_string();
+        let splited_name = name.split("@").collect::<Vec<&str>>();
+        let body = splited_name
+            .get(0)
+            .unwrap()
+            .split(":")
+            .collect::<Vec<&str>>();
+        let r#type = splited_name.get(1).unwrap_or(&"jar").to_string();
+        let group_id = body.get(0).unwrap().to_string();
+        let artifact_id = body.get(1).unwrap().to_string();
+        let version = body.get(2).unwrap().to_string();
+        let is_snapshot = version.ends_with("SNAPSHOT");
+        let group_path = group_id.replace(".", "/");
+        let base = format!("{group_path}/{artifact_id}/{version}/{artifact_id}-{version}");
+        let classifier = match body.get(3) {
+            Some(classifier) => format!("{base}-{classifier}"),
+            None => "".to_string(),
+        };
+        let path = format!("{base}.{type}");
+        Self {
+            group_id,
+            artifact_id,
+            version,
+            is_snapshot,
+            r#type,
+            classifier,
+            path,
+            name,
+        }
+    }
 }
-

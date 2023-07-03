@@ -1,9 +1,65 @@
-use std::{collections::HashMap, fs::File, path::PathBuf};
+use std::{collections::HashMap, fs::File, io::{Read, self}, path::PathBuf};
 
+use tokio::fs::create_dir_all;
 use zip::{read::ZipFile, CompressionMethod, DateTime, ZipArchive};
 
-pub(crate) type UnzipFrom = String;
-pub(crate) type UnzipTo = PathBuf;
+#[derive(Debug, Clone)]
+pub struct Entry {
+    pub version_name_by: (u8, u8),
+    pub name: String,
+    pub mangled_name: PathBuf,
+    pub enclosed_name: Option<PathBuf>,
+    pub comment: String,
+    pub compression: CompressionMethod,
+    pub compressed_size: u64,
+    pub size: u64,
+    pub last_modified: DateTime,
+    pub r#type: EntryType,
+    pub unix_mode: Option<u32>,
+    pub crc32: u32,
+    pub extra_data: Vec<u8>,
+    pub data_start: u64,
+    pub header_start: u64,
+    pub central_header_start: u64,
+    pub content: Vec<u8>,
+}
+
+impl Entry {
+    pub fn from_zip_file(zip_file: &mut ZipFile<'_>) -> Self {
+        Self {
+            version_name_by: zip_file.version_made_by(),
+            name: zip_file.name().to_string(),
+            mangled_name: zip_file.mangled_name().to_path_buf(),
+            enclosed_name: match zip_file.enclosed_name() {
+                None => None,
+                Some(value) => Some(value.to_path_buf()),
+            },
+            comment: zip_file.comment().to_string(),
+            compression: zip_file.compression(),
+            compressed_size: zip_file.compressed_size(),
+            size: zip_file.size(),
+            last_modified: zip_file.last_modified(),
+            r#type: {
+                if zip_file.is_dir() {
+                    EntryType::Dir
+                } else {
+                    EntryType::File
+                }
+            },
+            unix_mode: zip_file.unix_mode(),
+            crc32: zip_file.crc32(),
+            extra_data: zip_file.extra_data().to_owned(),
+            data_start: zip_file.data_start(),
+            header_start: zip_file.header_start(),
+            central_header_start: zip_file.central_header_start(),
+            content: {
+                let mut buf = Vec::new();
+                zip_file.read_to_end(&mut buf).unwrap();
+                buf
+            },
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum EntryType {
@@ -16,16 +72,45 @@ pub fn open(path: PathBuf) -> ZipArchive<File> {
     ZipArchive::new(file).unwrap()
 }
 
-pub fn filter_entries(zip: &mut ZipArchive<File>, entries: &Vec<String>) -> HashMap<String, Entry> {
+pub fn filter_entries<R: Read + io::Seek>(zip: &mut ZipArchive<R>, entries: &Vec<String>) -> HashMap<String, Entry> {
     let mut resolved_entries = HashMap::with_capacity(entries.len());
     for i in 0..zip.len() {
-        let zip_file = zip.by_index(i).unwrap();
-        let name = zip_file.name();
+        let mut zip_file = zip.by_index(i).unwrap();
+        let name = zip_file.name().to_string();
         for entry in entries {
+            let entry = entry.to_string();
             if name == entry {
-                resolved_entries.insert(entry.clone(), Entry::from_zip_file(zip_file));
+                resolved_entries.insert(entry, Entry::from_zip_file(&mut zip_file));
             }
         }
     }
     resolved_entries
+}
+
+
+pub async fn decompression_file(
+    zip_archive: &mut ZipArchive<File>,
+    from: String,
+    to: PathBuf,
+){
+    let mut buf: Vec<u8> = Vec::new();
+    zip_archive.by_name(&from).unwrap().read_to_end(&mut buf).unwrap();
+    tokio::fs::write(to, buf).await.unwrap();
+}
+
+pub async fn decompression_files<R: Read + io::Seek>(
+    zip_archive: &mut ZipArchive<R>,
+    tasks: Vec<(String, PathBuf)>,
+) {
+    // todo: 在线程池读取，并发写入
+    for task in tasks {
+        let mut buf: Vec<u8> = Vec::new();
+        zip_archive
+            .by_name(&task.0)
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+        create_dir_all(task.1.parent().unwrap()).await.unwrap();
+        tokio::fs::write(task.1, buf).await.unwrap();
+    }
 }

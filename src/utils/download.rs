@@ -1,6 +1,6 @@
 use futures::StreamExt;
 use once_cell::sync::Lazy;
-use reqwest::Client;
+use reqwest::{Client, Response};
 use tokio::fs;
 // use std::fs;
 use std::path::PathBuf;
@@ -18,7 +18,7 @@ pub struct Download {
 
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 
-pub async fn download(download_task: Download) {
+pub async fn download(download_task: Download) -> Response {
     // todo: 尝试从服务器获取文件大，超过5mb分片下载
     // todo: 错误处理
     let file_path = PathBuf::from(&download_task.file);
@@ -31,6 +31,7 @@ pub async fn download(download_task: Download) {
     while let Some(chunk) = response.chunk().await.unwrap() {
         file.write_all(&chunk).await.unwrap();
     }
+    response
 }
 
 pub fn filter_existing_files() {}

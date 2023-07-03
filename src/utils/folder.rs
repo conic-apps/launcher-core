@@ -36,9 +36,50 @@ impl MinecraftLocation {
         }
     }
 
-    pub fn get_version_json(&self, id: &str) -> PathBuf {
-        self.versions.join(format!("{}/{}.json", id, id))
+    pub fn get_natives_root(&self, version: &str) -> PathBuf {
+        PathBuf::from(version).join(format!("{version}-natives.jar"))
     }
+    
+    pub fn get_version_root(&self ,version: &str) -> PathBuf {
+        PathBuf::from(self.versions.clone()).join(version)
+    }
+    
+    pub fn get_version_json(&self ,version: &str) -> PathBuf {
+        PathBuf::from(self.get_version_root(version)).join(format!("{version}.json"))
+    }
+    
+    pub fn get_version_jar(&self , version: &str, r#type: Option<&str>) -> PathBuf {
+        if r#type == Some("client") || r#type.is_none() {
+            self.get_version_root(version).join(format!("{version}.jar"))
+        } else {
+            self.get_version_root(version).join(format!("{version}-{}.jar", r#type.unwrap()))
+        }
+    }
+    
+    pub fn get_version_all(&self , version: &str) -> Vec<PathBuf> {
+        vec![
+            self.versions.join(version),
+            self.versions.join(version).join(format!("{version}.json")),
+            self.versions.join(version).join(format!("{version}.jar")),
+        ]
+    }
+    
+    pub fn get_resource_pack(&self, file_name: &str) -> PathBuf {
+        self.resourcepacks.join(file_name)
+    }
+    
+    pub fn get_mod(&self, file_name: &str) -> PathBuf {
+        self.mods.join(file_name)
+    }
+    
+    pub fn get_log(&self, file_name: &str) -> PathBuf {
+        self.logs.join(file_name)
+    }
+
+    pub fn get_library_by_path(&self, library_path: &str) -> PathBuf {
+        self.libraries.join(library_path)
+    }
+    
 }
 
 pub fn get_path(path: &PathBuf) -> String {
@@ -47,6 +88,7 @@ pub fn get_path(path: &PathBuf) -> String {
         Some(s) => String::from(s),
     }
 }
+
 
 #[test]
 fn test() {

@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::core::version::Version;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PostProcessor {
     /// The executable jar path
     pub jar: String,
@@ -17,20 +17,21 @@ pub struct PostProcessor {
     pub sides: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InstallProfile {
     pub spec: Option<i32>,
     /// The type of this installation, like "forge"
-    pub profile: String,
+    pub profile: Option<String>,
 
     /// The version of this installation
-    pub version: String,
+    pub version: Option<String>,
 
     /// The version json path
-    pub json: String,
+    pub json: Option<String>,
 
     /// The maven artifact name: \<org\>:\<artifact-id\>:\<version\>
-    pub path: String,
+    pub path: Value,
 
     /// The minecraft version
     pub minecraft: String,
@@ -46,6 +47,13 @@ pub struct InstallProfile {
     /// The required install profile libraries
     pub libraries: Value,
 
+    pub version_info: Option<Version>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallProfileLegacy {
+    pub install :Value,
     pub version_info: Option<Version>,
 }
 
