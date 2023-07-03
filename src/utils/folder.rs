@@ -4,6 +4,7 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
+/// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.
 pub struct MinecraftLocation {
     pub root: PathBuf,
     pub libraries: PathBuf,

@@ -18,6 +18,7 @@ use crate::{
 
 pub mod fabric;
 pub mod forge;
+pub mod quilt;
 
 fn generate_libraries_download_list(
     libraries: ResolvedLibraries,
