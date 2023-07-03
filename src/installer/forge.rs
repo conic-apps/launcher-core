@@ -1,19 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // use serde_json::Value;
 // use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
 // use tokio::fs;
@@ -26,7 +10,23 @@
 
 // use super::profile::{InstallProfile, InstallProfileData};
 
-use crate::{utils::{folder::{MinecraftLocation, get_path}, download}, core::version::{Artifact, Download}};
+use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
+
+use serde_json::Value;
+use tokio::fs::create_dir_all;
+use zip::ZipArchive;
+
+use crate::{
+    core::version::{Artifact, Download},
+    installer::profile::InstallProfile,
+    utils::{
+        download,
+        folder::{get_path, MinecraftLocation},
+        unzip::{filter_entries, Entry, UnzipFrom, UnzipTo},
+    },
+};
+
+use super::profile::InstallProfileData;
 
 pub struct ForgeVersion {
     pub installer: ForgeVersionInstaller,
@@ -63,44 +63,43 @@ pub enum ForgeVersionType {
     Latest(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// All the useful entries in forge installer jar
 pub struct ForgeInstallerEntries {
     /// maven/net/minecraftforge/forge/${forgeVersion}/forge-${forgeVersion}-universal.jar
-    pub forge_jar: Option<Vec<u8>>,
+    pub forge_jar: Option<ZipFile>,
 
     /// maven/net/minecraftforge/forge/${forgeVersion}/forge-${forgeVersion}-universal.jar
-    pub forge_universal_jar: Option<Vec<u8>>,
+    pub forge_universal_jar: Option<Entry>,
 
     /// data/client.lzma
-    pub client_lzma: Option<Vec<u8>>,
+    pub client_lzma: Option<Entry>,
 
     /// data/server.lzma
-    pub server_lzma: Option<Vec<u8>>,
-
+    pub server_lzma: Option<Entry>,
     /// install_profile.json
-    pub install_profile_json: Option<Vec<u8>>,
+    pub install_profile_json: Option<Entry>,
 
     /// version.json
-    pub version_json: Option<Vec<u8>>,
+    pub version_json: Option<Entry>,
 
     /// forge-${forgeVersion}-universal.jar
-    pub legacy_universal_jar: Option<Vec<u8>>,
+    pub legacy_universal_jar: Option<Entry>,
 
     /// data/run.sh
-    pub run_sh: Option<Vec<u8>>,
+    pub run_sh: Option<Entry>,
 
     /// data/run.bat
-    pub run_bat: Option<Vec<u8>>,
+    pub run_bat: Option<Entry>,
 
     /// data/unix_args.txt
-    pub unix_args: Option<Vec<u8>>,
+    pub unix_args: Option<Entry>,
 
     /// data/user_jvm_args.txt
-    pub user_jvm_args: Option<Vec<u8>>,
+    pub user_jvm_args: Option<Entry>,
 
     /// data/win_args.txt
-    pub win_args: Option<Vec<u8>>,
+    pub win_args: Option<Entry>,
 }
 
 pub struct RequiredVersion {
@@ -148,16 +147,6 @@ pub enum ForgeType {
     Bad,
 }
 
-// struct DecompressionTask {
-//     zip: ZipArchive<File>,
-//     targets: Vec<DecompressionTaskTarget>,
-// }
-
-// struct DecompressionTaskTarget {
-//     entry: String,
-//     to: PathBuf,
-// }
-
 async fn download_forge_installer(
     forge_version: &str,
     required_version: RequiredVersion,
@@ -176,9 +165,9 @@ async fn download_forge_installer(
     let sha1 = match &required_version.installer {
         Some(installer) => match &installer.sha1 {
             Some(sha1) => String::from(sha1),
-            _ => "".to_string(),
+            _ => String::new(),
         },
-        _ => "".to_string(),
+        _ => String::new(),
     };
     let library = Artifact {
         path: format!(
@@ -199,258 +188,220 @@ async fn download_forge_installer(
     file_path
 }
 
-// async fn read_zipfiles_to_bytes(
-//     zip: &mut ZipArchive<File>,
-//     entries: Vec<String>,
-// ) -> HashMap<String, Vec<u8>> {
-//     // todo: 异步执行这个函数
-//     let mut result = HashMap::new();
-//     for i in 0..zip.len() {
-//         let mut entry = zip.by_index(i).unwrap();
-//         let entry_name = entry.name().to_owned();
-//         println!("{}", entry_name);
-//         for target_file in entries.clone() {
-//             println!("{}", target_file);
-//             if !entry_name.starts_with(&target_file) {
-//                 continue;
-//             }
-//             let mut data = Vec::new();
-//             entry.read_to_end(&mut data).unwrap();
-//             result.insert(target_file, data);
-//         }
-//     }
+async fn walk_forge_installer_entries(
+    mut zip: ZipArchive<File>,
+    forge_version: &str,
+) -> ForgeInstallerEntries {
+    let entries = vec![
+        format!(
+            "maven/net/minecraftforge/forge/{}/forge-{}.jar",
+            forge_version, forge_version
+        ),
+        format!(
+            "maven/net/minecraftforge/forge/{}/forge-{}-universal.jar",
+            forge_version, forge_version
+        ),
+        "data/client.lzma".to_string(),
+        "data/server.lzma".to_string(),
+        "install_profile.json".to_string(),
+        "version.json".to_string(),
+        format!("forge-{}-universal.jar", forge_version),
+        "data/run.sh".to_string(),
+        "data/run.bat".to_string(),
+        "data/unix_args.txt".to_string(),
+        "data/unix_jvm_args".to_string(),
+        "data/win_args".to_string(),
+    ];
+    // let content = read_zipfiles_to_bytes(&mut zip, entries.clone()).await;
+    // let get_content = move |index: usize| -> Option<Vec<u8>> {
+    //     content.get(&entries.get(index).unwrap().clone()).cloned()
+    // };
+    let filted_entries = filter_entries(&mut zip, &entries);
+    let get_content = move |index: usize| -> Option<Entry> {
+        filted_entries
+            .get(entries.clone().get(index).unwrap_or(&"null".to_string()))
+            .cloned()
+    };
+    ForgeInstallerEntries {
+        forge_jar: get_content(0),
+        forge_universal_jar: get_content(1),
+        client_lzma: get_content(2),
+        server_lzma: get_content(3),
+        install_profile_json: get_content(4),
+        version_json: get_content(5),
+        legacy_universal_jar: get_content(6),
+        run_sh: get_content(7),
+        run_bat: get_content(8),
+        unix_args: get_content(9),
+        user_jvm_args: get_content(10),
+        win_args: get_content(11),
+    }
+}
 
-//     result
-// }
+async fn unpack_forge_installer(
+    zip: ZipArchive<File>,
+    entries: ForgeInstallerEntries,
+    forge_version: &str,
+    minecraft: MinecraftLocation,
+    jar_path: PathBuf,
+    profile: InstallProfile,
+    options: Option<InstallForgeOptions>,
+) {
+    let version_json_raw = entries.version_json.unwrap();
+    let mut version_json: Value =
+        serde_json::from_str(&String::from_utf8(version_json_raw).unwrap()).unwrap();
 
-// async fn walk_forge_installer_entries(
-//     mut zip: ZipArchive<File>,
-//     forge_version: &str,
-// ) -> ForgeInstallerEntries {
-//     let entries = vec![
-//         format!(
-//             "maven/net/minecraftforge/forge/{}/forge-{}.jar",
-//             forge_version, forge_version
-//         ),
-//         format!(
-//             "maven/net/minecraftforge/forge/{}/forge-{}-universal.jar",
-//             forge_version, forge_version
-//         ),
-//         "data/client.lzma".to_string(),
-//         "data/server.lzma".to_string(),
-//         "install_profile.json".to_string(),
-//         "version.json".to_string(),
-//         format!("forge-{}-universal.jar", forge_version),
-//         "data/run.sh".to_string(),
-//         "data/run.bat".to_string(),
-//         "data/unix_args.txt".to_string(),
-//         "data/unix_jvm_args".to_string(),
-//         "data/win_args".to_string(),
-//     ];
-//     let content = read_zipfiles_to_bytes(&mut zip, entries.clone()).await;
-//     let get_content = move |index: usize| -> Option<Vec<u8>> {
-//         content.get(&entries.get(index).unwrap().clone()).cloned()
-//     };
-//     ForgeInstallerEntries {
-//         forge_jar: get_content(0),
-//         forge_universal_jar: get_content(1),
-//         client_lzma: get_content(2),
-//         server_lzma: get_content(3),
-//         install_profile_json: get_content(4),
-//         version_json: get_content(5),
-//         legacy_universal_jar: get_content(6),
-//         run_sh: get_content(7),
-//         run_bat: get_content(8),
-//         unix_args: get_content(9),
-//         user_jvm_args: get_content(10),
-//         win_args: get_content(11),
-//     }
-// }
+    //  apply override for inheritsFrom
+    if let Some(options) = options {
+        if let Some(id) = options.version_id {
+            version_json["id"] = Value::String(id);
+        }
+        if let Some(inherits_from) = options.inherits_from {
+            version_json["inheritsFrom"] = Value::String(inherits_from);
+        }
+    }
 
-// async fn unpack_forge_installer(
-//     zip: ZipArchive<File>,
-//     entries: ForgeInstallerEntries,
-//     forge_version: &str,
-//     minecraft: MinecraftLocation,
-//     jar_path: PathBuf,
-//     profile: InstallProfile,
-//     options: Option<InstallForgeOptions>,
-// ) {
-//     let version_json_raw = entries.version_json.unwrap();
-//     let mut version_json: Value =
-//         serde_json::from_str(&String::from_utf8(version_json_raw).unwrap()).unwrap();
+    //   resolve all the required paths
+    let root_path = minecraft.root;
 
-//     // apply override for inheritsFrom
-//     if let Some(options) = options {
-//         if let Some(id) = options.version_id {
-//             version_json["id"] = Value::String(id);
-//         }
-//         if let Some(inherits_from) = options.inherits_from {
-//             version_json["inheritsFrom"] = Value::String(inherits_from);
-//         }
-//     }
+    let version_json_path =
+        root_path.join(format!("{}.json", version_json["id"].as_str().unwrap()));
+    let install_json_path = root_path.join("install_profile.json");
 
-//     // resolve all the required paths
-//     let root_path = minecraft.root;
+    let data_root = jar_path.parent().unwrap().to_path_buf();
 
-//     let version_json_path =
-//         root_path.join(format!("{}.json", version_json["id"].as_str().unwrap()));
-//     let install_json_path = root_path.join("install_profile.json");
+    let mut decompression_tasks: HashMap<UnzipFrom, UnzipTo> = HashMap::new();
 
-//     let data_root = jar_path.parent().unwrap().to_path_buf();
+    create_dir_all(version_json_path.parent().unwrap())
+        .await
+        .unwrap();
 
-//     let mut decompression_tasks = DecompressionTask {
-//         zip,
-//         targets: Vec::new(),
-//     };
+    if let Some(_) = entries.forge_universal_jar {
+        decompression_tasks.insert(
+            format!(
+                "maven/net/minecraftforge/forge/{}/forge-{}-universal.jar",
+                forge_version, forge_version
+            ),
+            minecraft.libraries.clone().join(format!(
+                "maven/net/minecraftforge/forge/{}/forge-{}-universal.jar",
+                forge_version, forge_version
+            )),
+        );
+    }
+    let mut profile_data;
+    if let Some(h) = profile.data {
+        profile_data = h;
+    } else {
+        profile_data = HashMap::new();
+    }
 
-//     let unpack_data =
-//         |entry: String, zip: ZipArchive<File>, decompression_tasks: &mut DecompressionTask| {
-//             decompression_tasks.targets.push(DecompressionTaskTarget {
-//                 entry: entry.clone(),
-//                 to: PathBuf::new().join(entry.replace("data/", "")),
-//             });
-//         };
+    let installer_maven = format!("net.minecraftforge:forge:{forge_version}:installer");
+    let profile_data_installer = InstallProfileData {
+        client: Some(format!("[{installer_maven}]")),
+        server: Some(format!("[{installer_maven}]")),
+    };
+    profile_data.insert("INSTALLER".to_string(), profile_data_installer);
 
-//     fs::create_dir_all(version_json_path.parent().unwrap())
-//         .await
-//         .unwrap();
+    let path = &format!("net/minecraftforge/forge/{forge_version}/forge-{forge_version}.jar");
+    if let Some(server_lzma) = entries.server_lzma {
+        // forge version and mavens, compatible with twitch api
+        let server_maven = format!("net.minecraftforge:forge:{forge_version}:serverdata@lzma");
+        // override forge bin patch location
+        profile_data.insert(
+            "BINPATCH".to_string(),
+            InstallProfileData {
+                client: None,
+                server: Some(format!("[{server_maven}]")),
+            },
+        );
 
-//     if let Some(_) = entries.forge_universal_jar {
-//         decompression_tasks.targets.push(DecompressionTaskTarget {
-//             entry: format!(
-//                 "maven/net/minecraftforge/forge/{}/forge-{}-universal.jar",
-//                 forge_version, forge_version
-//             ),
-//             to: minecraft.libraries.clone().join(format!(
-//                 "maven/net/minecraftforge/forge/{}/forge-{}-universal.jar",
-//                 forge_version, forge_version
-//             )),
-//         })
-//     }
-//     let mut profile_data;
-//     if let Some(h) = profile.data {
-//         profile_data = h;
-//     } else {
-//         profile_data = HashMap::new();
-//     }
+        let server_bin_path = minecraft.libraries.join(path);
+        decompression_tasks.insert(String::from_utf8(server_lzma).unwrap(), server_bin_path);
+    }
 
-//     let installer_maven = format!("net.minecraftforge:forge:{forge_version}:installer");
-//     let profile_data_installer = InstallProfileData {
-//         client: Some(format!("[{installer_maven}]")),
-//         server: Some(format!("[{installer_maven}]")),
-//     };
-//     profile_data.insert("INSTALLER".to_string(), profile_data_installer);
+    if let Some(client_lzma) = entries.client_lzma {
+        //forge version and mavens, compatible with twitch api
+        let client_maven = format!("net.minecraftforge:forge:{forge_version}:clientdata@lzma");
+        //override forge bin patch location
+        let mut server = String::new();
+        let binpatch = profile_data.get("BINPATCH");
+        if let Some(b) = binpatch {
+            if let Some(s) = b.server.clone() {
+                server = s;
+            }
+        }
+        profile_data.insert(
+            "BINPATCH".to_string(),
+            InstallProfileData {
+                client: Some(format!("[{client_maven}]]")),
+                server: Some(server),
+            },
+        );
 
-//     let path = &format!("net/minecraftforge/forge/{forge_version}/forge-{forge_version}.jar");
-//     if let Some(server_lzma) = entries.server_lzma {
-//         // forge version and mavens, compatible with twitch api
-//         let server_maven = format!("net.minecraftforge:forge:{forge_version}:serverdata@lzma");
-//         // override forge bin patch location
-//         profile_data.insert(
-//             "BINPATCH".to_string(),
-//             InstallProfileData {
-//                 client: None,
-//                 server: Some(format!("[{server_maven}]")),
-//             },
-//         );
+        let client_bin_path = minecraft.libraries.join(format!(
+            "net/minecraftforge/forge/{forge_version}/forge-{forge_version}.jar"
+        ));
+        decompression_tasks.insert(String::from_utf8(client_lzma).unwrap(), client_bin_path);
+    }
 
-//         let server_bin_path = minecraft.libraries.join(path);
-//         decompression_tasks.targets.push(DecompressionTaskTarget {
-//             entry: String::from_utf8(server_lzma).unwrap(),
-//             to: server_bin_path,
-//         });
-//     }
+    if let Some(forge_jar) = entries.forge_jar {
+        decompression_tasks.insert(entries.forge_jar, get);
+    }
+}
 
-//     if let Some(client_lzma) = entries.client_lzma {
-//         //forge version and mavens, compatible with twitch api
-//         let client_maven = format!("net.minecraftforge:forge:{forge_version}:clientdata@lzma");
-//         //override forge bin patch location
-//         let mut server = String::new();
-//         let binpatch = profile_data.get("BINPATCH");
-//         if let Some(b) = binpatch {
-//             if let Some(s) = b.server.clone() {
-//                 server = s;
-//             }
-//         }
-//         profile_data.insert(
-//             "BINPATCH".to_string(),
-//             InstallProfileData {
-//                 client: Some(format!("[{client_maven}]]")),
-//                 server: Some(server),
-//             },
-//         );
+pub async fn install_forge(
+    version: RequiredVersion,
+    minecraft: MinecraftLocation,
+    options: Option<InstallForgeOptions>,
+) {
+    let mcversion: Vec<_> = version.mcversion.split(".").collect();
+    let minor = *mcversion.get(1).unwrap();
+    let minor_version = minor.parse::<i32>().unwrap();
 
-//         let client_bin_path = minecraft.libraries.join(format!(
-//             "net/minecraftforge/forge/{forge_version}/forge-{forge_version}.jar"
-//         ));
-//         decompression_tasks.targets.push(DecompressionTaskTarget {
-//             entry: String::from_utf8(client_lzma).unwrap(),
-//             to: client_bin_path,
-//         })
-//     }
+    let forge_version = if minor_version >= 7 && minor_version <= 8 {
+        format!(
+            "{}-{}-{}",
+            version.mcversion, version.version, version.mcversion
+        )
+    } else {
+        format!("{}-{}", version.mcversion, version.version)
+    };
 
-//     if let Some(forge_jar) = entries.forge_jar {
-//         decompression_tasks.targets.push(DecompressionTaskTarget {
-//             entry: entries.forge_jar,
-//             to: get,
-//         })
-//     }
-// }
+    let installer_jar_path =
+        download_forge_installer(&forge_version, version, minecraft, options).await;
+    println!("{}", installer_jar_path);
 
-// pub async fn install_forge(
-//     version: RequiredVersion,
-//     minecraft: MinecraftLocation,
-//     options: Option<InstallForgeOptions>,
-// ) {
-//     let mcversion: Vec<_> = version.mcversion.split(".").collect();
-//     let minor = *mcversion.get(1).unwrap();
-//     let minor_version = minor.parse::<i32>().unwrap();
+    // thread::sleep(tokio::time::Duration::from_secs(1));
 
-//     let forge_version = if minor_version >= 7 && minor_version <= 8 {
-//         format!(
-//             "{}-{}-{}",
-//             version.mcversion, version.version, version.mcversion
-//         )
-//     } else {
-//         format!("{}-{}", version.mcversion, version.version)
-//     };
+    let installer_jar = File::open(installer_jar_path).unwrap();
+    let installer_jar_ziparchive = zip::ZipArchive::new(installer_jar).unwrap();
+    println!("{}", installer_jar_ziparchive.len());
 
-//     let installer_jar_path =
-//         download_forge_installer(&forge_version, version, minecraft, options).await;
-//     println!("{}", installer_jar_path);
-
-//     // thread::sleep(tokio::time::Duration::from_secs(1));
-
-//     let installer_jar = File::open(installer_jar_path).unwrap();
-//     let installer_jar_ziparchive = zip::ZipArchive::new(installer_jar).unwrap();
-//     println!("{}", installer_jar_ziparchive.len());
-
-//     let entries = walk_forge_installer_entries(installer_jar_ziparchive, &forge_version).await;
-//     let install_profile_json = match &entries.install_profile_json {
-//         None => panic!("Bad forge installer jar!"),
-//         Some(data) => String::from_utf8(data.to_vec()).unwrap(),
-//     };
-//     let profile: InstallProfile = serde_json::from_str(&install_profile_json).unwrap();
-//     let forge_type = if let Some(_) = &entries.install_profile_json {
-//         if let Some(_) = entries.version_json {
-//             ForgeType::New
-//         } else if let Some(_) = &entries.legacy_universal_jar {
-//             ForgeType::Legacy
-//         } else {
-//             ForgeType::Bad
-//         }
-//     } else {
-//         ForgeType::Bad
-//     };
-//     match forge_type {
-//         ForgeType::New => {
-//             // let version_id = unpack_forge_installer(zip, entries);
-//         }
-//         ForgeType::Legacy => (),
-//         ForgeType::Bad => panic!("Bad forge installer jar!"),
-//     }
-// }
+    let entries = walk_forge_installer_entries(installer_jar_ziparchive, &forge_version).await;
+    let install_profile_json = match &entries.install_profile_json {
+        None => panic!("Bad forge installer jar!"),
+        Some(data) => String::from_utf8(data.to_vec()).unwrap(),
+    };
+    let profile: InstallProfile = serde_json::from_str(&install_profile_json).unwrap();
+    let forge_type = if let Some(_) = &entries.install_profile_json {
+        if let Some(_) = entries.version_json {
+            ForgeType::New
+        } else if let Some(_) = &entries.legacy_universal_jar {
+            ForgeType::Legacy
+        } else {
+            ForgeType::Bad
+        }
+    } else {
+        ForgeType::Bad
+    };
+    match forge_type {
+        ForgeType::New => {
+            // let version_id = unpack_forge_installer(zip, entries);
+        }
+        ForgeType::Legacy => (),
+        ForgeType::Bad => panic!("Bad forge installer jar!"),
+    }
+}
 
 // #[tokio::test]
 // async fn test() {
@@ -466,3 +417,17 @@ async fn download_forge_installer(
 //     .await;
 // }
 
+pub struct ForgeVersionList {
+    pub mcversion: String,
+    versions: Vec<ForgeVersion>,
+}
+
+// pub async fn get_forge_version_list(minecraft: Option<&str>) -> ForgeVersionList {
+//     let url = if let Some(minecraft) = minecraft {
+//        format!("http://files.minecraftforge.net/maven/net/minecraftforge/forge/index_{minecraft}.html")
+//     } else {
+//         "http://files.minecraftforge.net/maven/net/minecraftforge/forge/index.html".to_string()
+//     };
+//     let response = reqwest::get(url).await.unwrap();
+//     parse_forge(response.text().await);
+// }
