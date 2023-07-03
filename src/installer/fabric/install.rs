@@ -1,143 +1,24 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::{format, fs, vec};
+use tokio::fs;
 
 use crate::utils::folder::MinecraftLocation;
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FabricArtifactVersion {
-    pub game_version: Option<String>,
-    pub separator: Option<String>,
-    pub build: Option<usize>,
-    pub maven: String,
-    pub version: String,
-    pub stable: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct FabricArtifacts {
-    pub mappings: Vec<FabricArtifactVersion>,
-    pub loader: Vec<FabricArtifactVersion>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FabricLoaderArtifact {
-    pub loader: FabricArtifactVersion,
-    pub intermediary: FabricArtifactVersion,
-    pub launcher_meta: LauncherMeta,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LauncherMeta {
-    pub version: usize,
-    pub libraries: LauncherMetaLibraries,
-    pub main_class: Value,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct LauncherMetaLibraries {
-    pub client: Vec<LauncherMetaLibrariesItems>,
-    pub common: Vec<LauncherMetaLibrariesItems>,
-    pub server: Vec<LauncherMetaLibrariesItems>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct LauncherMetaLibrariesItems {
-    pub name: Option<String>,
-    pub url: Option<String>,
-}
-
-pub async fn get_fabric_artifacts() -> FabricArtifacts {
-    reqwest::get("https://meta.fabricmc.net/v2/versions")
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
-}
-
-pub async fn get_yarn_artifact_list() -> Vec<FabricArtifactVersion> {
-    reqwest::get("https://meta.fabricmc.net/v2/versions/yarn")
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
-}
-
-pub async fn get_yarn_artifact_list_for(minecraft: &str) -> Vec<FabricArtifactVersion> {
-    reqwest::get(format!(
-        "https://meta.fabricmc.net/v2/versions/yarn/{}",
-        minecraft
-    ))
-    .await
-    .unwrap()
-    .json()
-    .await
-    .unwrap()
-}
-
-pub async fn get_loader_artifact_list() -> Vec<FabricArtifactVersion> {
-    reqwest::get("https://meta.fabricmc.net/v2/versions/loader")
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
-}
-
-pub async fn get_loader_artifact_list_for(minecraft: &str) -> Vec<FabricLoaderArtifact> {
-    reqwest::get(format!(
-        "https://meta.fabricmc.net/v2/versions/loader/{}",
-        minecraft
-    ))
-    .await
-    .unwrap()
-    .json()
-    .await
-    .unwrap()
-}
-
-pub async fn get_fabric_loader_artifact(minecraft: &str, loader: &str) -> FabricLoaderArtifact {
-    reqwest::get(format!(
-        "https://meta.fabricmc.net/v2/versions/loader/{}/{}",
-        minecraft, loader
-    ))
-    .await
-    .unwrap()
-    .json()
-    .await
-    .unwrap()
-}
-
-pub enum FabricInstallSide {
-    Client,
-    Server,
-}
-
-pub enum YarnVersion {
-    String(String),
-    FabricArtifactVersion(FabricArtifactVersion),
-}
-pub struct FabricInstallOptions {
-    /// 当你想要在另一个版本的基础上安装一个版本时。
-    pub inherits_from: Option<String>,
-
-    /// 覆盖新安装的版本 id。
-    pub version_id: Option<String>,
-    pub size: Option<FabricInstallSide>,
-    pub yarn_version: Option<YarnVersion>,
-}
+use super::*;
 
 /// 根据 yarn 和 loader 生成 fabric 版本的 JSON 文件到磁盘中。
 pub async fn install_fabric(
     loader: FabricLoaderArtifact,
     minecraft_location: MinecraftLocation,
-    options: FabricInstallOptions,
+    options: Option<FabricInstallOptions>,
 ) -> String {
+    let options = match options {
+        None => FabricInstallOptions {
+            inherits_from: None,
+            version_id: None,
+            size: None,
+            yarn_version: None
+        },
+        Some(options) => options
+    };
     let yarn: Option<String>;
     let side = options.size.unwrap_or(FabricInstallSide::Client);
     let mut id = options.version_id;
@@ -208,12 +89,12 @@ pub async fn install_fabric(
     let inherits_from = options.inherits_from.unwrap_or(minecraft_version);
 
     let json_file_path = minecraft_location.get_version_json(&id.clone().unwrap());
-    fs::create_dir_all(json_file_path.parent().unwrap()).unwrap();
-    if let Ok(metadata) = fs::metadata(&json_file_path) {
+    fs::create_dir_all(json_file_path.parent().unwrap()).await.unwrap();
+    if let Ok(metadata) = fs::metadata(&json_file_path).await {
         if metadata.is_file() {
-            fs::remove_file(&json_file_path).unwrap();
+            fs::remove_file(&json_file_path).await.unwrap();
         } else {
-            fs::remove_dir_all(&json_file_path).unwrap();
+            fs::remove_dir_all(&json_file_path).await.unwrap();
         }
     }
     #[derive(Serialize)]
@@ -254,15 +135,7 @@ pub async fn install_fabric(
 
 #[tokio::test]
 async fn test() {
-    // let b = get_loader_artifact_list().await;
-    let a = get_fabric_loader_artifact("1.19.4", "0.1.0.48").await;
-    let options = FabricInstallOptions {
-        inherits_from: None,
-        version_id: None,
-        size: None,
-        yarn_version: None,
-    };
+    let artifact = super::version_list::get_fabric_loader_artifact("1.19.4", "0.1.0.48").await;
     let location = MinecraftLocation::new("test");
-    // println!("{:#?}",a);
-    install_fabric(a, location, options).await;
+    install_fabric(artifact, location, None).await;
 }
