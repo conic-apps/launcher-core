@@ -2,8 +2,9 @@ use std::{
     fs::File,
     io::{self, Read},
     path::PathBuf,
+    str::FromStr,
     thread,
-    time::Duration, str::FromStr,
+    time::Duration,
 };
 
 use reqwest::Response;
@@ -13,7 +14,8 @@ use crate::{
     core::version::Artifact,
     installer::forge::{
         install_profile::{InstallProfile, InstallProfileLegacy},
-        new_install::unpack_forge_installer, legacy_install::install_legacy_forge_from_zip,
+        legacy_install::install_legacy_forge_from_zip,
+        new_install::unpack_forge_installer,
     },
     utils::{
         download::{download, Download},
@@ -67,6 +69,7 @@ async fn download_forge_installer(
     let response = download(Download {
         url: library.url,
         file: file_path.clone(),
+        sha1: None,
     })
     .await;
     (file_path, response)

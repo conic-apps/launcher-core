@@ -30,7 +30,13 @@ fn generate_libraries_download_list(
         .into_iter()
         .map(|library| Download {
             url: format!("https://download.mcbbs.net/maven/{}", library.path),
-            file: get_path(&minecraft_location.libraries.join(library.path)),
+            file: minecraft_location
+                .libraries
+                .join(library.path)
+                .to_str()
+                .unwrap()
+                .to_string(),
+            sha1: Some(library.sha1),
         })
         .collect()
 }
@@ -57,13 +63,15 @@ async fn generate_assets_download_list(
                 &obj.1.hash[0..2],
                 obj.1.hash
             ),
-            file: get_path(
-                &minecraft_location
-                    .assets
-                    .join("objects")
-                    .join(&obj.1.hash[0..2])
-                    .join(&obj.1.hash),
-            ),
+            file: minecraft_location
+                .assets
+                .join("objects")
+                .join(&obj.1.hash[0..2])
+                .join(&obj.1.hash)
+                .to_str()
+                .unwrap()
+                .to_string(),
+            sha1: Some(obj.1.hash),
         })
         .collect();
     assets.push(Download {
@@ -74,6 +82,7 @@ async fn generate_assets_download_list(
                 .join("indexes")
                 .join(format!("{}.json", asset_index.id)),
         ),
+        sha1: None,
     });
     assets
 }
@@ -108,7 +117,6 @@ pub async fn install(
         panic!("Bad version manifest!!!")
     };
     let version_metadata = version_metadata.get(0).unwrap();
-    println!("{:#?}", version_metadata); // todo: 感觉没有获取到正确的版本所以打印出来看看是不是要求安装的，回来必须删掉
 
     let version_json_raw = reqwest::get(version_metadata.url.clone())
         .await
@@ -132,6 +140,7 @@ pub async fn install(
     download_list.push(Download {
         url: format!("https://download.mcbbs.net/version/{version_id}/client"),
         file: get_path(&minecraft_location.versions.join(format!("{id}/{id}.jar"))),
+        sha1: None,
     });
 
     download_list.extend(generate_libraries_download_list(
@@ -147,11 +156,11 @@ pub async fn install(
 
 #[tokio::test]
 async fn test() {
-    let a = Box::new(|completed, total| {
-        println!("{}/{}", completed, total);
+    let a = Box::new(|completed, total, step| {
+        println!("progress: {completed}/{total}  step: {step}");
     });
     let cb = EventListeners::new().on_progress(a);
-    install("1.20", MinecraftLocation::new("test"), cb).await;
+    install("1.20.1", MinecraftLocation::new("test"), cb).await;
     // let minecraft_location = MinecraftLocation::new("test");
     // let raw = read_to_string(minecraft_location.versions.clone().join("1.20").join("1.20.json")).unwrap();
     // let version = crate::core::version::Version::from_str(&raw).unwrap().parse(minecraft_location.clone());

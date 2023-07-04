@@ -4,6 +4,7 @@ use reqwest::{Client, Response};
 use std::ffi::OsStr;
 use tokio::fs;
 // use std::fs;
+use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -11,10 +12,13 @@ use tokio::io::AsyncWriteExt;
 
 use crate::core::task::EventListeners;
 
-#[derive(Debug)]
+use super::sha1::calculate_sha1_from_read;
+
+#[derive(Debug, Clone)]
 pub struct Download<P: AsRef<Path> + AsRef<OsStr>> {
     pub url: String,
     pub file: P,
+    pub sha1: Option<String>,
 }
 
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
@@ -37,18 +41,38 @@ pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(download_task: Download<P>)
 
 pub fn filter_existing_files() {}
 
-pub async fn download_files<P: AsRef<Path> + AsRef<OsStr>>(
-    download_tasks: Vec<Download<P>>,
-    callbacks: EventListeners,
-) {
+pub async fn download_files(download_tasks: Vec<Download<String>>, listeners: EventListeners) {
+    listeners.start();
+    listeners.progress(0, 0, 1);
+    let download_tasks: Vec<_> = download_tasks
+        .par_iter()
+        .filter(|download_task| {
+            match std::fs::metadata(&download_task.file) {
+                Err(_) => {
+                    return true;
+                }
+                _ => (),
+            }
+            let mut file = std::fs::File::open(&download_task.file).unwrap();
+            let file_sha1 = calculate_sha1_from_read(&mut file);
+            let sha1 = match download_task.sha1.clone() {
+                None => return true,
+                Some(sha1) => sha1,
+            };
+            if file_sha1 == sha1 {
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
     let total = download_tasks.len();
     let counter: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
-    (callbacks.on_start)();
     let stream = futures::stream::iter(download_tasks)
         .map(|download_task| {
             let counter = Arc::clone(&counter);
             async move {
-                let result = download(download_task).await;
+                let result = download(download_task.clone()).await;
                 counter.fetch_add(1, Ordering::SeqCst);
                 result
             }
@@ -57,12 +81,14 @@ pub async fn download_files<P: AsRef<Path> + AsRef<OsStr>>(
     stream
         .for_each_concurrent(1, |_| async {
             let completed = counter.clone().load(Ordering::SeqCst);
-            (callbacks.on_progress)(completed, total);
+            listeners.progress(completed, total, 2);
             //println!("{completed}/{total}");
         })
         .await;
     if counter.load(Ordering::SeqCst) == total {
-        (callbacks.on_succeed)();
+        listeners.succeed();
+    } else {
+        listeners.failed();
     }
 }
 

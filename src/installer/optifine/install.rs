@@ -14,90 +14,6 @@ use super::InstallOptifineOptions;
 
 const OPTIFINE_INSTALL_HELPER: &[u8] = include_bytes!("./optifine-installer.jar");
 
-// /// Generate the optifine version json from provided info.
-// /// `edition_release` - The edition + release with _
-// /// `mcversion` - The minecraft version
-// /// `launcher_wrapper_version` - The launcher wrapper version
-// /// `options` - The install options
-// fn generate_optifine_version(
-//     edition_release: &str,
-//     mcversion: &str,
-//     launcher_wrapper_version: Option<&str>,
-//     options: Option<InstallOptifineOptions>,
-// ) -> Version {
-//     let options = match options {
-//         None => InstallOptifineOptions {
-//             use_forge_tweaker: None,
-//             inherits_from: None,
-//             version_id: None,
-//             remote: None,
-//         },
-//         Some(options) => options,
-//     };
-//     let id = options
-//         .version_id
-//         .unwrap_or(format!("{mcversion}-Optifine_{edition_release}"));
-//     let inherits_from = Some(options.inherits_from.unwrap_or(mcversion.to_string()));
-//     #[derive(Debug, Clone, Serialize)]
-//     struct Libraries {
-//         name: String,
-//     }
-//     let mut libraries = vec![serde_json::to_value(&Libraries {
-//         name: format!("optifine:Optifine:{mcversion}_{edition_release}"),
-//     })
-//     .unwrap()];
-//     if let Some(launcher_wrapper_version) = launcher_wrapper_version {
-//         libraries.insert(0,serde_json::to_value(&Libraries{
-//             name: format!("optifine:Optifine:{mcversion}_{edition_release}_LauncherWrapper:{launcher_wrapper_version}"),
-//         }).unwrap());
-//     } else {
-//         libraries.insert(
-//             0,
-//             serde_json::to_value(&Libraries {
-//                 name: "net.minecraft:launchwrapper:1.12".to_string(),
-//             })
-//             .unwrap(),
-//         );
-//     }
-//     let libraries = Some(libraries);
-//     let arguments = Arguments {
-//         game: Some(vec![Value::from("--tweakClass"), {
-//             match options.use_forge_tweaker {
-//                 None => Value::from("optifine.OptiFineTweaker"),
-//                 Some(use_forge_tweaker) => {
-//                     if use_forge_tweaker {
-//                         Value::from("optifine.OptiFineForgeTweaker")
-//                     } else {
-//                         Value::from("optifine.OptiFineTweaker")
-//                     }
-//                 }
-//             }
-//         }]),
-//         jvm: Some(vec![]),
-//     };
-//     Version {
-//         id,
-//         inherits_from,
-//         arguments: Some(arguments),
-//         release_time: Some("2023-07-03T15:34:56.290Z".to_string()),
-//         time: Some("2023-07-03T15:34:56.290Z".to_string()),
-//         r#type: Some("release".to_string()),
-//         libraries,
-//         main_class: Some("net.minecraft.launchwrapper.Launch".to_string()),
-//         asset_index: None,
-//         minimum_launcher_version: Some(21),
-//         minecraft_arguments: None,
-//         jar: None,
-//         assets: None,
-//         downloads: None,
-//         client: None,
-//         server: None,
-//         logging: None,
-//         java_version: None,
-//         client_version: None,
-//     }
-// }
-
 /// Download forge installer
 pub async fn download_optifine_installer<P, D>(
     mcversion: &str,
@@ -116,16 +32,17 @@ pub async fn download_optifine_installer<P, D>(
     download(Download {
         url,
         file: dest_path,
+        sha1: None,
     })
     .await;
 }
 
 /// Install optifine
-/// 
+///
 /// referenced from [Sharp Craft Launcher](https://github.com/Steve-xmh/scl/blob/main/scl-core/src/download/optifine.rs)
-/// 
+///
 /// #### Note:
-/// 
+///
 /// if you need to install as mod, use download_optifine_install function
 pub async fn install_optifine(
     minecraft: MinecraftLocation,
