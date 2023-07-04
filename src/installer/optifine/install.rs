@@ -4,10 +4,7 @@ use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{
     installer::optifine::DEFAULT_META_URL,
-    utils::{
-        download::{download, Download},
-        folder::MinecraftLocation,
-    },
+    utils::download::{download, Download}, core::folder::MinecraftLocation,
 };
 
 use super::InstallOptifineOptions;

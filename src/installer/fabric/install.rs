@@ -1,10 +1,27 @@
 use tokio::fs;
 
-use crate::utils::folder::MinecraftLocation;
+use crate::core::folder::MinecraftLocation;
 
 use super::*;
 
-/// 根据 yarn 和 loader 生成 fabric 版本的 JSON 文件到磁盘中。
+/// Generate the fabric version JSON file to disk according to yarn and loader.
+/// 
+/// ### Arguments
+/// 
+/// * `loader` - The fabric loader version.
+/// * `minecraft_location` - The minecraft location.
+/// * `options` - The install options.
+/// 
+/// ### Example
+/// 
+/// ```rust
+/// use mgl_core::installer::fabric::install;
+/// 
+/// let loader = "1.19.4";
+/// let minecraft_location = MinecraftLocation::new("test");
+/// let options = None;
+/// install(loader, minecraft_location, options).await;
+/// ```
 pub async fn install_fabric(
     loader: FabricLoaderArtifact,
     minecraft_location: MinecraftLocation,
@@ -135,7 +152,7 @@ pub async fn install_fabric(
 
 #[tokio::test]
 async fn test() {
-    let artifact = super::version_list::get_fabric_loader_artifact("1.19.4", "0.1.0.48").await;
+    let artifact = super::FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
     let location = MinecraftLocation::new("test");
     install_fabric(artifact, location, None).await;
 }

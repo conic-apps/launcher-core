@@ -1,6 +1,6 @@
 use tokio::fs::{create_dir_all, self};
 
-use crate::{utils::folder::MinecraftLocation, core::version::LibraryInfo};
+use crate::core::{version::LibraryInfo, folder::MinecraftLocation};
 
 use super::{*, install_profile::InstallProfileLegacy};
 

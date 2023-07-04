@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub mod version_list;
 pub mod install;
+pub mod version_list;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,12 +15,40 @@ pub struct FabricArtifactVersion {
     pub stable: bool,
 }
 
+/// Fabric Artifacts
+///
+/// ### Example
+///
+/// basic usage:
+///
+/// ```rust
+/// use mgl_core::installer::fabric::FabricArtifacts;
+///
+/// async fn fn_name() {
+///     let artifacts = FabricArtifacts::new().await;
+///     println!("{:#?}", artifacts);
+/// }
+/// ```
 #[derive(Debug, Deserialize)]
 pub struct FabricArtifacts {
     pub mappings: Vec<FabricArtifactVersion>,
     pub loader: Vec<FabricArtifactVersion>,
 }
 
+/// Fabric Loader Artifact
+///
+/// ### Example
+///
+/// basic usage:
+///
+/// ```rust
+/// use mgl_core::installer::fabric::FabricLoaderArtifact;
+///
+/// async fn fn_name() {
+///     let artifact = FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
+///     println!("{:#?}", artifact);
+/// }
+/// ```
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FabricLoaderArtifact {
@@ -28,6 +56,42 @@ pub struct FabricLoaderArtifact {
     pub intermediary: FabricArtifactVersion,
     pub launcher_meta: LauncherMeta,
 }
+
+/// Yarn Artifacts
+///
+/// ### Example
+///
+/// basic usage:
+///
+/// ```rust
+/// use mgl_core::installer::fabric::YarnArtifactList;
+/// 
+/// async fn fn_name() {
+///     let artifacts = YarnArtifactList::new().await;
+///     println!("{:#?}", artifacts);
+/// }
+/// ```
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YarnArtifactList(Vec<FabricArtifactVersion>);
+
+/// Loader Artifacts
+///
+/// ### Example
+///
+/// basic usage:
+///
+/// ```rust
+/// use mgl_core::installer::fabric::LoaderArtifactList;
+///
+/// async fn fn_name() {
+///     let artifacts = LoaderArtifactList::new().await;
+///     println!("{:#?}", artifacts);
+/// }
+/// ```
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoaderArtifactList(Vec<FabricArtifactVersion>);
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +123,7 @@ pub enum YarnVersion {
     String(String),
     FabricArtifactVersion(FabricArtifactVersion),
 }
+
 pub struct FabricInstallOptions {
     /// 当你想要在另一个版本的基础上安装一个版本时。
     pub inherits_from: Option<String>,

@@ -1,6 +1,6 @@
 use tokio::fs::{self, create_dir_all};
 
-use crate::{core::version::Version, utils::folder::MinecraftLocation};
+use crate::core::{version::Version, folder::MinecraftLocation};
 
 use super::DEFAULT_META_URL;
 

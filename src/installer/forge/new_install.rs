@@ -1,12 +1,22 @@
-use std::{io::{self, Read}, path::PathBuf, collections::HashMap};
+use std::{
+    collections::HashMap,
+    io::{self, Read},
+    path::PathBuf,
+};
 
 use serde_json::Value;
-use tokio::fs::{create_dir_all, self};
+use tokio::fs::{self, create_dir_all};
 use zip::ZipArchive;
 
-use crate::{utils::{folder::MinecraftLocation, unzip::decompression_files}, core::version::Version};
+use crate::{
+    core::{folder::MinecraftLocation, version::Version},
+    utils::unzip::decompression_files,
+};
 
-use super::{*, install_profile::{InstallProfile, InstallProfileData}};
+use super::{
+    install_profile::{InstallProfile, InstallProfileData},
+    *,
+};
 
 pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
     zip: &mut ZipArchive<R>,
