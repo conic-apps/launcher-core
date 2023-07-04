@@ -25,7 +25,7 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn from_zip_file(zip_file: &mut ZipFile<'_>) -> Self {
+    pub fn from_zip_file(zip_file: &mut ZipFile<'_>) -> Entry {
         Self {
             version_name_by: zip_file.version_made_by(),
             name: zip_file.name().to_string(),
@@ -58,6 +58,22 @@ impl Entry {
                 buf
             },
         }
+    }
+
+    pub fn from_zip_archive<R: Read + io::Seek>(zip: &mut ZipArchive<R>) -> Vec<Entry> {
+        let mut entries = Vec::with_capacity(zip.len());
+        for i in 0..zip.len() {
+            entries.push(Entry::from_zip_file(&mut zip.by_index(i).unwrap()));
+        }
+        entries
+    }
+
+    pub fn get_entries_record(entries: Vec<Entry>) -> HashMap<String, Entry>{
+        let mut resolved_entries = HashMap::with_capacity(entries.len());
+        for entry in entries {
+            resolved_entries.insert(entry.name.clone(), entry);
+        }
+        resolved_entries
     }
 }
 

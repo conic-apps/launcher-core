@@ -1,24 +1,25 @@
 use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reqwest::{Client, Response};
+use std::ffi::OsStr;
 use tokio::fs;
 // use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 
-use crate::core::task::Callbacks;
+use crate::core::task::EventListeners;
 
 #[derive(Debug)]
-pub struct Download {
+pub struct Download<P: AsRef<Path> + AsRef<OsStr>> {
     pub url: String,
-    pub file: String,
+    pub file: P,
 }
 
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 
-pub async fn download(download_task: Download) -> Response {
+pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(download_task: Download<P>) -> Response {
     // todo: 尝试从服务器获取文件大，超过5mb分片下载
     // todo: 错误处理
     let file_path = PathBuf::from(&download_task.file);
@@ -36,7 +37,10 @@ pub async fn download(download_task: Download) -> Response {
 
 pub fn filter_existing_files() {}
 
-pub async fn download_files(download_tasks: Vec<Download>, callbacks: Callbacks) {
+pub async fn download_files<P: AsRef<Path> + AsRef<OsStr>>(
+    download_tasks: Vec<Download<P>>,
+    callbacks: EventListeners,
+) {
     let total = download_tasks.len();
     let counter: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
     (callbacks.on_start)();

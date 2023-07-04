@@ -4,7 +4,7 @@ use tokio::io::AsyncWriteExt;
 
 use crate::{
     core::{
-        task::Callbacks,
+        task::EventListeners,
         version::{
             self, AssetIndex, AssetIndexObject, ResolvedLibraries, ResolvedVersion, VersionManifest,
         },
@@ -18,12 +18,13 @@ use crate::{
 
 pub mod fabric;
 pub mod forge;
+pub mod optifine;
 pub mod quilt;
 
 fn generate_libraries_download_list(
     libraries: ResolvedLibraries,
     minecraft_location: &MinecraftLocation,
-) -> Vec<Download> {
+) -> Vec<Download<String>> {
     libraries
         .clone()
         .into_iter()
@@ -37,7 +38,7 @@ fn generate_libraries_download_list(
 async fn generate_assets_download_list(
     asset_index: AssetIndex,
     minecraft_location: &MinecraftLocation,
-) -> Vec<Download> {
+) -> Vec<Download<String>> {
     let asset_index_url = Url::parse(&asset_index.url).unwrap();
     let asset_index_raw = reqwest::get(asset_index_url)
         .await
@@ -80,7 +81,7 @@ async fn generate_assets_download_list(
 pub async fn install_dependencies(
     version: ResolvedVersion,
     minecraft_location: MinecraftLocation,
-    callbacks: Callbacks,
+    callbacks: EventListeners,
 ) {
     let mut download_list = Vec::new();
     download_list.extend(generate_libraries_download_list(
@@ -96,7 +97,7 @@ pub async fn install_dependencies(
 pub async fn install(
     version_id: &str,
     minecraft_location: MinecraftLocation,
-    callbacks: Callbacks,
+    callbacks: EventListeners,
 ) {
     let versions = VersionManifest::new().await.versions;
     let version_metadata: Vec<_> = versions
@@ -149,7 +150,7 @@ async fn test() {
     let a = Box::new(|completed, total| {
         println!("{}/{}", completed, total);
     });
-    let cb = Callbacks::new().on_progress(a);
+    let cb = EventListeners::new().on_progress(a);
     install("1.20", MinecraftLocation::new("test"), cb).await;
     // let minecraft_location = MinecraftLocation::new("test");
     // let raw = read_to_string(minecraft_location.versions.clone().join("1.20").join("1.20.json")).unwrap();
