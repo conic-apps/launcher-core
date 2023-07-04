@@ -16,15 +16,15 @@ pub enum State {
     Failed,
 }
 
-pub struct Callbacks {
-    // todo: 改称 Vec<Box<dyn Fn()>>，以允许执行多个异步
+pub struct EventListeners {
+    // todo: 改成 Vec<Box<dyn Fn()>>，以允许执行多个异步
     pub on_start: Box<dyn Fn()>,
     pub on_progress: Box<dyn Fn(usize, usize)>,
     pub on_succeed: Box<dyn Fn()>,
     pub on_failed: Box<dyn Fn()>,
 }
 
-impl Callbacks {
+impl EventListeners {
     pub fn new() -> Self {
         Self {
             on_start: Box::new(|| {}),

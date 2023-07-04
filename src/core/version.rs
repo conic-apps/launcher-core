@@ -147,8 +147,8 @@ pub struct Platform {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Arguments {
-    game: Option<Vec<serde_json::Value>>,
-    jvm: Option<Vec<serde_json::Value>>,
+    pub game: Option<Vec<serde_json::Value>>,
+    pub jvm: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]

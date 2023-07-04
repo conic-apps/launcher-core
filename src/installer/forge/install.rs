@@ -26,6 +26,8 @@ use super::*;
 
 const DEFAULT_FORGE_MAVEN: &str = "http://files.minecraftforge.net/maven";
 
+// todo: 使用 Steve-xmh/forge-install-bootstrapper 修复新版forge安装
+
 async fn download_forge_installer(
     forge_version: &str,
     required_version: RequiredVersion,
