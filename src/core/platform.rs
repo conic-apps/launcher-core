@@ -1,14 +1,32 @@
+//! A module for platform information
+
 use uname::uname;
+
+// todo: 静态...
+
+/// get platform information including `name`, `version`, `arch`
+/// 
+/// # Example
+/// 
+/// basic usage:
+/// 
+/// ```rust
+/// use mgl_core::core::platform::PlatformInfo;
+/// 
+/// let info = PlatformInfo::new();
+/// println!("{:#?}", info.name);
 #[derive(Debug)]
 pub struct PlatformInfo {
     pub name: String,
     pub version: String,
     pub arch: String,
 }
+
 impl PlatformInfo {
-    pub fn get() -> PlatformInfo {
+    /// get platform information
+    pub fn new() -> Self {
         let info = uname().unwrap();
-        PlatformInfo {
+        Self {
             name: if cfg!(target_os = "windows") {
                 "windows"
             } else if cfg!(target_os = "linux") {
@@ -40,9 +58,4 @@ impl PlatformInfo {
             .to_string(),
         }
     }
-}
-
-#[test]
-fn test() {
-    println!("{:#?}", PlatformInfo::get());
 }

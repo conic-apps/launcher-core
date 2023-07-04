@@ -4,7 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::utils::folder::MinecraftLocation;
+use crate::core::folder::MinecraftLocation;
 
 use super::platform::PlatformInfo;
 
@@ -165,6 +165,17 @@ pub struct JavaVersion {
     pub major_version: i32,
 }
 
+/// Resolved version.json
+///
+/// Use `new` to parse a Minecraft version json, and see the detail info of the version,
+/// equivalent to `crate::core::version::Version::parse`.
+///
+/// ### Example
+///
+/// basic usage:
+///
+/// ```rust
+/// async fn
 #[derive(Debug, Clone)]
 pub struct ResolvedVersion {
     /// The id of the version, should be identical to the version folder.
@@ -204,11 +215,58 @@ pub struct ResolvedVersion {
     pub path_chain: Vec<PathBuf>,
 }
 
-/// The raw json format provided by Minecraft. Also the namespace of version operation.
+/// The raw json format provided by Minecraft.
 ///
-/// Use `parse` to parse a Minecraft version json on the disk, and see the detail info of the version.
+/// Use `parse` to parse a Minecraft version json, and see the detail info of the version.
 ///
 /// With `ResolvedVersion`, you can use the resolved version to launch the game.
+///
+/// ### Example
+///
+/// usage 1:
+///
+/// ```rust
+/// use mgl_core::core::version::Version;
+///
+/// async fn fn_name() {
+///     let version = reqwest::get("https://piston-meta.mojang.com/v1/packages/715ccf3330885e75b205124f09f8712542cbe7e0/1.20.1.json")
+///         .await
+///         .unwrap()
+///         .json::<Version>()
+///         .await
+///         .unwrap();
+///     println!("{:#?}", version);
+/// }
+/// ```
+///
+/// usage 2:
+///
+/// ```rust
+/// use mgl_core::core::version::Version;
+///
+/// async fn fn_name() {
+///     let response = reqwest::get("https://piston-meta.mojang.com/v1/packages/715ccf3330885e75b205124f09f8712542cbe7e0/1.20.1.json")
+///         .await
+///         .unwrap()
+///         .text()
+///         .await
+///         .unwrap();
+///     let version = Version::from_str(&response).unwrap();
+///     println!("{:#?}", version);
+/// }
+/// ```
+///
+/// usage 3:
+///
+/// ```rust
+/// use mgl_core::core::version::Version;
+/// use mgl_core::core::folder::MinecraftLocation;
+///
+/// async fn fn_name(version: Version) {
+///     let resolved_version = version.parse(MinecraftLocation::new("test"));
+///     println!("{:#?}", resolved_version);
+/// }
+/// ```
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Version {
@@ -256,6 +314,7 @@ impl Version {
         Ok(version)
     }
 
+    /// parse a Minecraft version json
     pub fn parse(&self, minecraft: MinecraftLocation) -> ResolvedVersion {
         let mut inherits_from = self.inherits_from.clone();
         let versions_folder = minecraft.versions;
@@ -380,7 +439,7 @@ pub struct ResolvedArguments {
 pub type ResolvedLibraries = Vec<Artifact>;
 
 fn resolve_arguments(arguments: Vec<Value>) -> String {
-    let platform = &PlatformInfo::get();
+    let platform = &PlatformInfo::new();
     let mut result = String::new();
     for argument in arguments {
         if argument.is_string() {
@@ -411,7 +470,7 @@ fn resolve_arguments(arguments: Vec<Value>) -> String {
 }
 
 fn resolve_libraries(libraries: Vec<Value>) -> ResolvedLibraries {
-    let platform = PlatformInfo::get();
+    let platform = PlatformInfo::new();
     let mut result: Vec<Artifact> = Vec::new();
     for library in libraries {
         let rules = library["rules"].as_array();

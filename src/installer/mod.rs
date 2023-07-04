@@ -8,11 +8,9 @@ use crate::{
         version::{
             self, AssetIndex, AssetIndexObject, ResolvedLibraries, ResolvedVersion, VersionManifest,
         },
-    },
-    utils::{
-        download::{download_files, Download},
         folder::{get_path, MinecraftLocation},
     },
+    utils::download::{download_files, Download},
 };
 // todo: crate::core::task里面放 Task 结构体，把Future放进去
 
