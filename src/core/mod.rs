@@ -4,6 +4,9 @@ pub mod version;
 
 use tokio::process::Command;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PlatformInfo {
     pub arch: String,
     pub name: String,
@@ -27,11 +30,16 @@ impl PlatformInfo {
             version: {
                 #[cfg(windows)]
                 {
+                    use regex::Regex;
+
                     let mut command = Command::new("C:\\Windows\\System32\\cmd.exe");
-                    command.args(&["/C", r#"powershell -c [System.Environment]::OSVersion.Version"#]);
+                    command.args(&[
+                        "/C",
+                        r#"powershell -c [System.Environment]::OSVersion.Version"#,
+                    ]);
                     let output = command.output().await.unwrap();
                     let stdout = String::from_utf8(output.stdout).unwrap();
-                
+
                     let regex = Regex::new(r"\s+").unwrap();
                     regex.replace_all(&stdout, ".").to_string()
                 }
@@ -63,4 +71,10 @@ impl PlatformInfo {
             .to_string(),
         }
     }
+}
+
+#[tokio::test]
+async fn test() {
+    let platform = PlatformInfo::new().await;
+    println!("{:#?}", platform);
 }
