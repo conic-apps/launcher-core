@@ -4,11 +4,11 @@ use tokio::io::AsyncWriteExt;
 
 use crate::{
     core::{
+        folder::{get_path, MinecraftLocation},
         task::EventListeners,
         version::{
             self, AssetIndex, AssetIndexObject, ResolvedLibraries, ResolvedVersion, VersionManifest,
         },
-        folder::{get_path, MinecraftLocation},
     },
     utils::download::{download_files, Download},
 };
@@ -88,7 +88,7 @@ async fn generate_assets_download_list(
 pub async fn install_dependencies(
     version: ResolvedVersion,
     minecraft_location: MinecraftLocation,
-    callbacks: EventListeners,
+    listeners: EventListeners,
 ) {
     let mut download_list = Vec::new();
     download_list.extend(generate_libraries_download_list(
@@ -98,13 +98,13 @@ pub async fn install_dependencies(
     download_list.extend(
         generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await,
     );
-    download_files(download_list, callbacks).await;
+    download_files(download_list, listeners).await;
 }
 
 pub async fn install(
     version_id: &str,
     minecraft_location: MinecraftLocation,
-    callbacks: EventListeners,
+    listeners: EventListeners,
 ) {
     let versions = VersionManifest::new().await.versions;
     let version_metadata: Vec<_> = versions
@@ -124,7 +124,8 @@ pub async fn install(
         .unwrap();
     let version = version::Version::from_str(&version_json_raw)
         .unwrap()
-        .parse(minecraft_location.clone());
+        .parse(minecraft_location.clone())
+        .await;
     let id = &version.id;
 
     let version_json_path = minecraft_location.versions.join(format!("{id}/{id}.json"));
@@ -149,16 +150,16 @@ pub async fn install(
         generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await,
     );
 
-    download_files(download_list, callbacks).await
+    download_files(download_list, listeners).await
 }
 
 #[tokio::test]
 async fn test() {
-    let a = Box::new(|completed, total, step| {
-        println!("progress: {completed}/{total}  step: {step}");
-    });
-    let cb = EventListeners::new().on_progress(a);
-    install("1.20.1", MinecraftLocation::new("test"), cb).await;
+    // let a = Box::new(|completed, total, step| {
+    //     println!("progress: {completed}/{total}  step: {step}");
+    // });
+    // let cb = EventListeners::new().on_progress(a);
+    // install("1.20.1", MinecraftLocation::new("test"), cb).await;
     // let minecraft_location = MinecraftLocation::new("test");
     // let raw = read_to_string(minecraft_location.versions.clone().join("1.20").join("1.20.json")).unwrap();
     // let version = crate::core::version::Version::from_str(&raw).unwrap().parse(minecraft_location.clone());

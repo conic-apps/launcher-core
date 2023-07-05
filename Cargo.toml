@@ -11,7 +11,6 @@ keywords = ["minecraft", "launcher"]
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-uname = "0.1.1" 
 regex = "1.8.1"
 reqwest = { version = "0.11", features = ["json"] }
 rayon = "1.5"

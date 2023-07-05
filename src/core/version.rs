@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::core::folder::MinecraftLocation;
 
-use super::platform::PlatformInfo;
+use super::PlatformInfo;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct LatestVersion {
@@ -315,7 +315,7 @@ impl Version {
     }
 
     /// parse a Minecraft version json
-    pub fn parse(&self, minecraft: MinecraftLocation) -> ResolvedVersion {
+    pub async fn parse(&self, minecraft: MinecraftLocation) -> ResolvedVersion {
         let mut inherits_from = self.inherits_from.clone();
         let versions_folder = minecraft.versions;
         let mut versions = Vec::new();
@@ -406,14 +406,14 @@ impl Version {
         ResolvedVersion {
             id: self.id.clone(),
             arguments: Some(ResolvedArguments {
-                game: resolve_arguments(game_args),
-                jvm: resolve_arguments(jvm_args),
+                game: resolve_arguments(game_args).await,
+                jvm: resolve_arguments(jvm_args).await,
             }),
             main_class,
             asset_index: self.asset_index.clone(),
             assets: self.assets.clone().unwrap_or("".to_string()),
             downloads: self.downloads.clone(),
-            libraries: resolve_libraries(libraries_raw),
+            libraries: resolve_libraries(libraries_raw).await,
             minimum_launcher_version,
             release_time,
             time,
@@ -438,8 +438,8 @@ pub struct ResolvedArguments {
 
 pub type ResolvedLibraries = Vec<Artifact>;
 
-fn resolve_arguments(arguments: Vec<Value>) -> String {
-    let platform = &PlatformInfo::new();
+async fn resolve_arguments(arguments: Vec<Value>) -> String {
+    let platform = PlatformInfo::new().await;
     let mut result = String::new();
     for argument in arguments {
         if argument.is_string() {
@@ -451,7 +451,7 @@ fn resolve_arguments(arguments: Vec<Value>) -> String {
         }
         let rules = argument["rules"].as_array();
         if let Some(rules) = rules {
-            if !check_allowed(rules.clone(), platform) {
+            if !check_allowed(rules.clone(), &platform) {
                 continue;
             };
         }
@@ -469,8 +469,8 @@ fn resolve_arguments(arguments: Vec<Value>) -> String {
     result
 }
 
-fn resolve_libraries(libraries: Vec<Value>) -> ResolvedLibraries {
-    let platform = PlatformInfo::new();
+async fn resolve_libraries(libraries: Vec<Value>) -> ResolvedLibraries {
+    let platform = PlatformInfo::new().await;
     let mut result: Vec<Artifact> = Vec::new();
     for library in libraries {
         let rules = library["rules"].as_array();
@@ -542,7 +542,10 @@ fn check_allowed(rules: Vec<Value>, platform: &PlatformInfo) -> bool {
             continue;
         }
         let version = os["version"].as_str().unwrap();
-        if Regex::is_match(&Regex::new(version).unwrap(), &platform.version) {
+        if Regex::is_match(
+            &Regex::new(version).unwrap(),
+            &platform.version.to_string(),
+        ) {
             allow = action;
         }
         // todo: check `features`
