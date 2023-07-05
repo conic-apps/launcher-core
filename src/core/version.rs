@@ -169,13 +169,6 @@ pub struct JavaVersion {
 ///
 /// Use `new` to parse a Minecraft version json, and see the detail info of the version,
 /// equivalent to `crate::core::version::Version::parse`.
-///
-/// ### Example
-///
-/// basic usage:
-///
-/// ```rust
-/// async fn
 #[derive(Debug, Clone)]
 pub struct ResolvedVersion {
     /// The id of the version, should be identical to the version folder.
