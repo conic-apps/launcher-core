@@ -90,16 +90,16 @@ pub async fn install_optifine(
     file.flush().await.unwrap();
     file.sync_all().await.unwrap();
 
-    #[cfg(not(windows))]
+    // #[cfg(not(windows))]
     let mut command = tokio::process::Command::new(java_executable_path);
 
-    #[cfg(windows)]
-    let mut command = {
-        use tokio::process::windows::CommandExt;
-        let mut command = tokio::process::Command::new(java_executable_path);
-        command.creation_flags(0x08000000);
-        command
-    };
+    // // #[cfg(windows)]
+    // let mut command = {
+    //     use tokio::process::windows::CommandExt;
+    //     let mut command = tokio::process::Command::new(java_executable_path);
+    //     command.creation_flags(0x08000000);
+    //     command
+    // };
 
     command.args(&[
         "-cp",
