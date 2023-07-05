@@ -256,7 +256,7 @@ pub struct ResolvedVersion {
 /// use mgl_core::core::folder::MinecraftLocation;
 ///
 /// async fn fn_name(version: Version) {
-///     let resolved_version = version.parse(MinecraftLocation::new("test"));
+///     let resolved_version = version.parse(MinecraftLocation::new("test")).await;
 ///     println!("{:#?}", resolved_version);
 /// }
 /// ```

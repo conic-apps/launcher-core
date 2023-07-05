@@ -15,12 +15,16 @@ use super::*;
 /// ### Example
 /// 
 /// ```rust
-/// use mgl_core::installer::fabric::install;
+/// use mgl_core::installer::fabric::install::install_fabric;
+/// use mgl_core::core::folder::MinecraftLocation;
+/// use mgl_core::installer::fabric::FabricLoaderArtifact;
 /// 
-/// let loader = "1.19.4";
-/// let minecraft_location = MinecraftLocation::new("test");
-/// let options = None;
-/// install(loader, minecraft_location, options).await;
+/// async fn fn_name() {
+///     let loader = FabricLoaderArtifact::new("1.19.4", "xxx").await; // xxx is your fabric loader version
+///     let minecraft_location = MinecraftLocation::new("test");
+///     let options = None;
+///     install_fabric(loader, minecraft_location, options).await;
+/// }
 /// ```
 pub async fn install_fabric(
     loader: FabricLoaderArtifact,

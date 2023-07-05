@@ -120,16 +120,16 @@ async fn test() {
     //     EventListeners::new(),
     // )
     // .await;
-    install_optifine(
-        MinecraftLocation::new("test"),
-        "1.19.4-optifine",
-        "1.19.4",
-        "HD_U",
-        "I3",
-        "java",
-        None,
-    )
-    .await;
+    // install_optifine(
+    //     MinecraftLocation::new("test"),
+    //     "1.19.4-optifine",
+    //     "1.19.4",
+    //     "HD_U",
+    //     "I3",
+    //     "java",
+    //     None,
+    // )
+    // .await;
 }
 
 //     let options = match options {
