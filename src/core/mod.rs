@@ -73,6 +73,7 @@ impl PlatformInfo {
     }
 }
 
+#[cfg(test)]
 #[tokio::test]
 async fn test() {
     let platform = PlatformInfo::new().await;

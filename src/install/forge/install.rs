@@ -12,7 +12,7 @@ use zip::ZipArchive;
 
 use crate::{
     core::{version::Artifact, folder::MinecraftLocation},
-    installer::forge::{
+    install::forge::{
         install_profile::{InstallProfile, InstallProfileLegacy},
         legacy_install::install_legacy_forge_from_zip,
         new_install::unpack_forge_installer,

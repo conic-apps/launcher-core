@@ -308,7 +308,11 @@ impl Version {
     }
 
     /// parse a Minecraft version json
-    pub async fn parse(&self, minecraft: MinecraftLocation) -> ResolvedVersion {
+    pub async fn parse(
+        &self,
+        minecraft: MinecraftLocation,
+        platform: &PlatformInfo,
+    ) -> ResolvedVersion {
         let mut inherits_from = self.inherits_from.clone();
         let versions_folder = minecraft.versions;
         let mut versions = Vec::new();
@@ -399,14 +403,14 @@ impl Version {
         ResolvedVersion {
             id: self.id.clone(),
             arguments: Some(ResolvedArguments {
-                game: resolve_arguments(game_args).await,
-                jvm: resolve_arguments(jvm_args).await,
+                game: resolve_arguments(game_args, platform).await,
+                jvm: resolve_arguments(jvm_args, platform).await,
             }),
             main_class,
             asset_index: self.asset_index.clone(),
             assets: self.assets.clone().unwrap_or("".to_string()),
             downloads: self.downloads.clone(),
-            libraries: resolve_libraries(libraries_raw).await,
+            libraries: resolve_libraries(libraries_raw, platform).await,
             minimum_launcher_version,
             release_time,
             time,
@@ -431,8 +435,7 @@ pub struct ResolvedArguments {
 
 pub type ResolvedLibraries = Vec<Artifact>;
 
-async fn resolve_arguments(arguments: Vec<Value>) -> String {
-    let platform = PlatformInfo::new().await;
+async fn resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> String {
     let mut result = String::new();
     for argument in arguments {
         if argument.is_string() {
@@ -462,8 +465,7 @@ async fn resolve_arguments(arguments: Vec<Value>) -> String {
     result
 }
 
-async fn resolve_libraries(libraries: Vec<Value>) -> ResolvedLibraries {
-    let platform = PlatformInfo::new().await;
+async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> ResolvedLibraries {
     let mut result: Vec<Artifact> = Vec::new();
     for library in libraries {
         let rules = library["rules"].as_array();
@@ -535,10 +537,7 @@ fn check_allowed(rules: Vec<Value>, platform: &PlatformInfo) -> bool {
             continue;
         }
         let version = os["version"].as_str().unwrap();
-        if Regex::is_match(
-            &Regex::new(version).unwrap(),
-            &platform.version.to_string(),
-        ) {
+        if Regex::is_match(&Regex::new(version).unwrap(), &platform.version.to_string()) {
             allow = action;
         }
         // todo: check `features`

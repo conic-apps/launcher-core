@@ -8,7 +8,7 @@ use crate::{
         task::EventListeners,
         version::{
             self, AssetIndex, AssetIndexObject, ResolvedLibraries, ResolvedVersion, VersionManifest,
-        },
+        }, PlatformInfo,
     },
     utils::download::{download_files, Download},
 };
@@ -106,6 +106,8 @@ pub async fn install(
     minecraft_location: MinecraftLocation,
     listeners: EventListeners,
 ) {
+    let platform = PlatformInfo::new().await;
+
     let versions = VersionManifest::new().await.versions;
     let version_metadata: Vec<_> = versions
         .into_iter()
@@ -124,7 +126,7 @@ pub async fn install(
         .unwrap();
     let version = version::Version::from_str(&version_json_raw)
         .unwrap()
-        .parse(minecraft_location.clone())
+        .parse(minecraft_location.clone(), &platform)
         .await;
     let id = &version.id;
 

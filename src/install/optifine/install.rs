@@ -3,7 +3,7 @@ use std::{ffi::OsStr, fmt::Display, path::Path};
 use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{
-    installer::optifine::DEFAULT_META_URL,
+    install::optifine::DEFAULT_META_URL,
     utils::download::{download, Download}, core::folder::MinecraftLocation,
 };
 

@@ -1,4 +1,4 @@
-pub mod installer;
-pub mod launcher;
+pub mod install;
+pub mod launch;
 pub mod utils;
 pub mod core;
