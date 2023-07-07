@@ -65,7 +65,7 @@ pub struct FabricLoaderArtifact {
 ///
 /// ```rust
 /// use mgl_core::installer::fabric::YarnArtifactList;
-/// 
+///
 /// async fn fn_name() {
 ///     let artifacts = YarnArtifactList::new().await;
 ///     println!("{:#?}", artifacts);

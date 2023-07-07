@@ -1,32 +1,72 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 pub mod folder;
 pub mod task;
 pub mod version;
+pub mod errors;
 
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncBufReadExt;
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub(crate) enum OsType {
+    Windows,
+    Linux,
+    Osx,
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PlatformInfo {
     pub arch: String,
     pub name: String,
+    pub(crate) os_type: OsType,
     pub version: String,
 }
+
+#[cfg(windows)]
+pub static DELIMITER: &str = ";";
+#[cfg(not(windows))]
+pub static DELIMITER: &str = ":";
 
 impl PlatformInfo {
     /// get platform information
     pub async fn new() -> Self {
+        let os_type = if cfg!(target_os = "windows") {
+            OsType::Windows
+        } else if cfg!(target_os = "linux") {
+            OsType::Linux
+        } else if cfg!(target_os = "macos") {
+            OsType::Osx
+        } else {
+            panic!("Sorry, but this program does not support your system!")
+        };
         Self {
-            name: if cfg!(target_os = "windows") {
-                "windows"
-            } else if cfg!(target_os = "linux") {
-                "linux"
-            } else if cfg!(target_os = "macos") {
-                "osx"
-            } else {
-                "unknown"
-            }
-            .to_string(),
+            name: match os_type {
+                OsType::Windows => "windows".to_string(),
+                OsType::Linux => "linux".to_string(),
+                OsType::Osx => "osx".to_string(),
+            },
+            os_type,
             version: {
                 #[cfg(windows)]
                 {
@@ -68,7 +108,29 @@ impl PlatformInfo {
             } else {
                 "unknown"
             }
-            .to_string(),
+                .to_string(),
+        }
+    }
+}
+
+// todo
+pub struct JavaExec {
+    pub binary: PathBuf,
+    pub version: String,
+    pub version_major: u32,
+}
+
+impl JavaExec {
+    pub async fn new<P: AsRef<OsStr>>(home: &P) -> Self {
+        let home = Path::new(home).to_path_buf();
+        let release = tokio::fs::read_to_string(home.join("release")).await.unwrap();
+        let version = release.lines().find(|line| {
+            line.starts_with("JAVA_VERSION")
+        }).unwrap().split("=").collect::<Vec<&str>>().get(1).unwrap().trim().to_string();
+        Self {
+            binary: home.join("bin").join("java"),
+            version_major: version.split(".").collect::<Vec<&str>>()[0].parse().unwrap(),
+            version,
         }
     }
 }

@@ -3,6 +3,7 @@ use std::{
     format,
     path::{Path, PathBuf},
 };
+use std::ffi::OsStr;
 
 #[derive(Debug, Clone)]
 /// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.
@@ -21,7 +22,7 @@ pub struct MinecraftLocation {
 }
 
 impl MinecraftLocation {
-    pub fn new(root: &str) -> MinecraftLocation {
+    pub fn new<S: AsRef<OsStr> + ?Sized>(root: &S) -> MinecraftLocation {
         let path = Path::new(root);
         MinecraftLocation {
             root: path.to_path_buf(),
@@ -50,7 +51,11 @@ impl MinecraftLocation {
         PathBuf::from(self.get_version_root(&version)).join(format!("{version}.json"))
     }
 
-    pub fn get_version_jar<P: AsRef<Path> + Display>(&self, version: P, r#type: Option<&str>) -> PathBuf {
+    pub fn get_version_jar<P: AsRef<Path> + Display>(
+        &self,
+        version: P,
+        r#type: Option<&str>,
+    ) -> PathBuf {
         if r#type == Some("client") || r#type.is_none() {
             self.get_version_root(&version)
                 .join(format!("{version}.jar"))
@@ -82,6 +87,14 @@ impl MinecraftLocation {
 
     pub fn get_library_by_path<P: AsRef<Path>>(&self, library_path: P) -> PathBuf {
         self.libraries.join(library_path)
+    }
+
+    pub fn get_assets_index(&self, version_assets: &str) -> PathBuf {
+        self.assets.join("indexes").join(format!("{version_assets}.json"))
+    }
+
+    pub fn get_log_config<P: AsRef<Path>>(&self, file: P) -> PathBuf {
+        self.assets.join("log_configs").join(file)
     }
 }
 
