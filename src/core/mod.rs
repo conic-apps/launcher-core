@@ -16,17 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+pub mod errors;
 pub mod folder;
 pub mod task;
 pub mod version;
-pub mod errors;
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncBufReadExt;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub(crate) enum OsType {
@@ -108,7 +107,7 @@ impl PlatformInfo {
             } else {
                 "unknown"
             }
-                .to_string(),
+            .to_string(),
         }
     }
 }
@@ -123,13 +122,24 @@ pub struct JavaExec {
 impl JavaExec {
     pub async fn new<P: AsRef<OsStr>>(home: &P) -> Self {
         let home = Path::new(home).to_path_buf();
-        let release = tokio::fs::read_to_string(home.join("release")).await.unwrap();
-        let version = release.lines().find(|line| {
-            line.starts_with("JAVA_VERSION")
-        }).unwrap().split("=").collect::<Vec<&str>>().get(1).unwrap().trim().to_string();
+        let release = tokio::fs::read_to_string(home.join("release"))
+            .await
+            .unwrap();
+        let version = release
+            .lines()
+            .find(|line| line.starts_with("JAVA_VERSION"))
+            .unwrap()
+            .split("=")
+            .collect::<Vec<&str>>()
+            .get(1)
+            .unwrap()
+            .trim()
+            .to_string();
         Self {
             binary: home.join("bin").join("java"),
-            version_major: version.split(".").collect::<Vec<&str>>()[0].parse().unwrap(),
+            version_major: version.split(".").collect::<Vec<&str>>()[0]
+                .parse()
+                .unwrap(),
             version,
         }
     }

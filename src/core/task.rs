@@ -1,3 +1,21 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 //! The install task manager
 
 /// Execute the corresponding function when the installation event occurs
@@ -42,10 +60,7 @@ impl TaskEventListeners {
     }
     /// Register the start event listener, when the task start, the event will be triggered
     pub fn on_start(self, on_start: Box<dyn Fn()>) -> Self {
-        Self {
-            on_start,
-            ..self
-        }
+        Self { on_start, ..self }
     }
     /// Register the progress event listener, when the task progress, the event will be triggered
     pub fn on_progress(self, on_progress: Box<dyn Fn(usize, usize, usize)>) -> Self {
@@ -56,17 +71,11 @@ impl TaskEventListeners {
     }
     /// Register the succeed event listener, when the task succeed, the event will be triggered
     pub fn on_succeed(self, on_succeed: Box<dyn Fn()>) -> Self {
-        Self {
-            on_succeed,
-            ..self
-        }
+        Self { on_succeed, ..self }
     }
     /// Register the failed event listener, when the task failed, the event will be triggered
     pub fn on_failed(self, on_failed: Box<dyn Fn()>) -> Self {
-        Self {
-            on_failed,
-            ..self
-        }
+        Self { on_failed, ..self }
     }
     pub(crate) fn start(&self) {
         (self.on_start)();
@@ -81,57 +90,3 @@ impl TaskEventListeners {
         (self.on_failed)();
     }
 }
-
-/// Execute the corresponding function when the installation event occurs
-///
-/// please use `ProcessEventListeners::new()` to create a new instance, and use
-/// `ProcessEventListeners::on_stdout()` `ProcessEventListeners::on_stderr()`
-/// `ProcessEventListeners::on_exit()`
-pub struct ProcessEventListeners {
-    on_stdout: Box<dyn Fn(&str)>,
-    /// It's not actually used
-    ///
-    /// todo: Supports monitoring of stderr
-    on_stderr: Box<dyn Fn(&str)>,
-    /// The exit code is not actually checked
-    ///
-    /// todo: check exit code
-    on_exit: Box<dyn Fn(usize)>,
-}
-
-impl ProcessEventListeners {
-    pub fn new() -> Self {
-        Self {
-            on_stdout: Box::new(|log| println!("{}", log)),
-            on_stderr: Box::new(|log| println!("{}", log)),
-            on_exit: Box::new(
-                |exit_code| println!("process exited with exit_code: {exit_code}")
-            ),
-        }
-    }
-    /// Register the stdout event listener, when the stdout occurs, the event will be triggered
-    pub fn on_stdout(self, on_stdout: Box<dyn Fn(&str)>) -> Self {
-        Self {
-            on_stdout,
-            ..self
-        }
-    }
-    /// Register the stderr event listener, when the stderr occurs, the event will be triggered
-    pub fn on_stderr(self, on_stderr: Box<dyn Fn(&str)>) -> Self {
-        Self {
-            on_stderr,
-            ..self
-        }
-    }
-    /// Register the exit event listener, when the process end, the event will be triggered
-    pub fn on_exit(self, on_exit: Box<dyn Fn(usize)>) -> Self {
-        Self {
-            on_exit,
-            ..self
-        }
-    }
-    pub(crate) fn stdout(&self, log: &str) {(self.on_stdout)(log);}
-    pub(crate) fn stderr(&self, log: &str) {(self.on_stderr)(log);}
-    pub(crate) fn exit(&self, exit_code: usize) {(self.on_exit)(exit_code);}
-}
-

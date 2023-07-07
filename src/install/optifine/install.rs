@@ -20,11 +20,12 @@ use std::{ffi::OsStr, fmt::Display, path::Path};
 
 use tokio::{fs, io::AsyncWriteExt};
 
+use crate::core::DELIMITER;
 use crate::{
     core::folder::MinecraftLocation,
+    install::optifine::DEFAULT_META_URL,
     utils::download::{download, Download},
 };
-use crate::core::DELIMITER;
 
 use super::InstallOptifineOptions;
 

@@ -1,9 +1,26 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reqwest::{Client, Response};
 use std::ffi::OsStr;
 use tokio::fs;
-// use std::fs;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -32,7 +49,7 @@ pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(download_task: Download<P>)
         fs::create_dir_all(&direction).await.unwrap()
     }
     let mut response = HTTP_CLIENT.get(&download_task.url).send().await.unwrap();
-    let mut file = tokio::fs::File::create(&download_task.file).await.unwrap();
+    let mut file = fs::File::create(&download_task.file).await.unwrap();
     while let Some(chunk) = response.chunk().await.unwrap() {
         file.write_all(&chunk).await.unwrap();
     }

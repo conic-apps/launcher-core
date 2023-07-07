@@ -16,27 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::core::folder::MinecraftLocation;
+use crate::core::version::{ResolvedVersion, Version};
+use crate::core::{JavaExec, OsType, PlatformInfo, DELIMITER};
+use once_cell::sync::Lazy;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::env::vars;
-use std::io::{BufRead, BufReader};
-use std::ops::Deref;
-use crate::core::folder::MinecraftLocation;
-use crate::core::task::ProcessEventListeners;
-use crate::core::version::{JavaVersion, ResolvedVersion, Version};
-use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::ExitStatus;
 use std::string::ToString;
-use std::sync::Arc;
-use std::thread;
-use futures::SinkExt;
-use regex::Regex;
-use serde_json::Value;
-use crate::core::{DELIMITER, JavaExec, OsType, PlatformInfo};
-
-
-pub mod helper;
+use tokio::process::Command;
 
 pub static DEFAULT_EXTRA_JVM_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
     vec![
@@ -275,7 +267,8 @@ const DEFAULT_MINECRAFT_ICON: &[u8] = include_bytes!("./assets/minecraft.icns");
 
 impl LaunchArguments {
     pub async fn from_launch_options(
-        launch_options: LaunchOptions, version: ResolvedVersion,
+        launch_options: LaunchOptions,
+        version: ResolvedVersion,
     ) -> Self {
         // todo: if launch_options.game_path.is_absolute() { return Err(); }
         let platform = PlatformInfo::new().await;
@@ -285,7 +278,9 @@ impl LaunchArguments {
             Some(icon_path) => icon_path,
             None => {
                 let icon_path = minecraft.assets.join("minecraft.icns");
-                tokio::fs::write(&icon_path, DEFAULT_MINECRAFT_ICON).await.unwrap();
+                tokio::fs::write(&icon_path, DEFAULT_MINECRAFT_ICON)
+                    .await
+                    .unwrap();
                 icon_path
             }
         };
@@ -294,16 +289,21 @@ impl LaunchArguments {
 
         command_arguments.push(format!(
             "-Dminecraft.client.jar={version_jar}",
-            version_jar = launch_options.version_root.join(&launch_options.version_id).to_string_lossy()
+            version_jar = launch_options
+                .version_root
+                .join(&launch_options.version_id)
+                .to_string_lossy()
         ));
 
         if platform.name == "osx" {
-            command_arguments.push(
-                format!("-Xdock:name={game_name}", game_name = launch_options.game_name)
-            );
-            command_arguments.push(
-                format!("-Xdock:icon={game_icon}", game_icon = game_icon.to_string_lossy())
-            );
+            command_arguments.push(format!(
+                "-Xdock:name={game_name}",
+                game_name = launch_options.game_name
+            ));
+            command_arguments.push(format!(
+                "-Xdock:icon={game_icon}",
+                game_icon = game_icon.to_string_lossy()
+            ));
         }
 
         if let Some(min_memory) = launch_options.min_memory {
@@ -334,7 +334,10 @@ impl LaunchArguments {
             GC::Parallel => {
                 command_arguments.extend([
                     "-XX:+UseParallelGC".to_string(),
-                    format!("-XX:ParallelGCThreads={num}", num = num_cpus::get_physical())
+                    format!(
+                        "-XX:ParallelGCThreads={num}",
+                        num = num_cpus::get_physical()
+                    ),
                 ]);
             }
             GC::ParallelOld => {
@@ -350,13 +353,15 @@ impl LaunchArguments {
 
         if let Some(ygg) = launch_options.yggdrasil_agent {
             command_arguments.push(format!(
-                "-javaagent:{jar}={server}", jar = ygg.jar.to_string_lossy(), server = ygg.server
+                "-javaagent:{jar}={server}",
+                jar = ygg.jar.to_string_lossy(),
+                server = ygg.server
             ));
             command_arguments.push("-Dauthlibinjector.side=client".to_string());
             if let Some(prefetched) = ygg.prefetched {
-                command_arguments.push(
-                    format!("-Dauthlibinjector.yggdrasil.prefetched={prefetched}")
-                );
+                command_arguments.push(format!(
+                    "-Dauthlibinjector.yggdrasil.prefetched={prefetched}"
+                ));
             }
         }
 
@@ -372,21 +377,19 @@ impl LaunchArguments {
             "-Dcom.sun.jndi.rmi.object.trustURLCodebase=false".to_string(),
             "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false".to_string(),
             "-Dlog4j2.formatMsgNoLookups=true".to_string(),
-        ]);// todo: test the jvm args
+        ]); // todo: test the jvm args
         // todo: support proxy
 
         let mut jvm_options: HashMap<&str, String> = HashMap::new();
         jvm_options.insert(
-            "natives_directory", launch_options.native_root.to_string_lossy().to_string(),
+            "natives_directory",
+            launch_options.native_root.to_string_lossy().to_string(),
         );
+        jvm_options.insert("launcher_name", launch_options.launcher_name);
+        jvm_options.insert("launcher_version", launch_options.launcher_version);
         jvm_options.insert(
-            "launcher_name", launch_options.launcher_name,
-        );
-        jvm_options.insert(
-            "launcher_version", launch_options.launcher_version,
-        );
-        jvm_options.insert(
-            "classpath", resolve_classpath(&version, &minecraft, launch_options.extra_class_paths),
+            "classpath",
+            resolve_classpath(&version, &minecraft, launch_options.extra_class_paths),
         );
 
         let mut jvm_arguments = version.arguments.clone().unwrap().jvm;
@@ -395,16 +398,18 @@ impl LaunchArguments {
                 let argument = &client.argument;
                 let file_path = minecraft.get_log_config(&client.file.id);
                 if tokio::fs::try_exists(&file_path).await.unwrap() {
-                    jvm_arguments.push(argument.replace(
-                        "${path}", &file_path.to_string_lossy().to_string(),
-                    ));
+                    jvm_arguments.push(
+                        argument.replace("${path}", &file_path.to_string_lossy().to_string()),
+                    );
                 }
             }
         }
 
-        command_arguments.extend(jvm_arguments.iter().map(|arg| {
-            format(arg, jvm_options.clone())
-        }));
+        command_arguments.extend(
+            jvm_arguments
+                .iter()
+                .map(|arg| format(arg, jvm_options.clone())),
+        );
         command_arguments.extend(launch_options.extra_jvm_args);
 
         command_arguments.push(version.main_class);
@@ -412,73 +417,70 @@ impl LaunchArguments {
         let mut game_options = HashMap::with_capacity(13);
 
         let assets_dir = launch_options.resource_path.join("assets");
-        game_options.insert("version_name", match launch_options.version_name {
-            Some(v) => v,
-            None => version.id
-        });
-        game_options.insert("version_type", match launch_options.version_type {
-            Some(v) => v,
-            None => version.version_type
-        });
+        game_options.insert(
+            "version_name",
+            match launch_options.version_name {
+                Some(v) => v,
+                None => version.id,
+            },
+        );
+        game_options.insert(
+            "version_type",
+            match launch_options.version_type {
+                Some(v) => v,
+                None => version.version_type,
+            },
+        );
         game_options.insert("assets_root", assets_dir.to_string_lossy().to_string());
         game_options.insert(
             "game_assets",
-            assets_dir.join("virtual").join(&version.assets).to_string_lossy().to_string(),
+            assets_dir
+                .join("virtual")
+                .join(&version.assets)
+                .to_string_lossy()
+                .to_string(),
         );
+        game_options.insert("assets_index_name", version.assets);
         game_options.insert(
-            "assets_index_name", version.assets,
+            "game_directory",
+            launch_options.game_path.to_string_lossy().to_string(),
         );
+        game_options.insert("auth_player_name", launch_options.game_profile.name);
+        game_options.insert("auth_uuid", launch_options.game_profile.uuid);
+        game_options.insert("auth_access_token", launch_options.access_token);
+        game_options.insert("user_properties", launch_options.properties);
         game_options.insert(
-            "game_directory", launch_options.game_path.to_string_lossy().to_string(),
-        );
-        game_options.insert(
-            "auth_player_name", launch_options.game_profile.name,
-        );
-        game_options.insert(
-            "auth_uuid", launch_options.game_profile.uuid,
-        );
-        game_options.insert(
-            "auth_access_token", launch_options.access_token,
-        );
-        game_options.insert(
-            "user_properties", launch_options.properties,
-        );
-        game_options.insert(
-            "user_type", match launch_options.user_type {
+            "user_type",
+            match launch_options.user_type {
                 UserType::Mojang => "mojang".to_string(),
                 UserType::Legacy => "legacy".to_string(),
             },
         );
-        game_options.insert(
-            "resolution_width", launch_options.width.to_string(),
-        );
-        game_options.insert(
-            "resolution_height", launch_options.height.to_string(),
-        );
+        game_options.insert("resolution_width", launch_options.width.to_string());
+        game_options.insert("resolution_height", launch_options.height.to_string());
 
         command_arguments.extend(
-            version.arguments.unwrap().game
+            version
+                .arguments
+                .unwrap()
+                .game
                 .iter()
-                .map(|arg| format(arg, game_options.clone()))
+                .map(|arg| format(arg, game_options.clone())),
         );
         command_arguments.extend(launch_options.extra_mc_args);
         if let Some(server) = launch_options.server {
-            command_arguments.extend(vec![
-                "--server".to_string(),
-                server.ip,
-            ]);
+            command_arguments.extend(vec!["--server".to_string(), server.ip]);
             if let Some(port) = server.port {
-                command_arguments.extend(vec![
-                    "--port".to_string(),
-                    port.to_string(),
-                ])
+                command_arguments.extend(vec!["--port".to_string(), port.to_string()])
             }
         }
         if launch_options.fullscreen {
             command_arguments.push("--fullscreen".to_string());
         }
-        let no_width_arguments =
-            None == command_arguments.iter().find(|v| v == &&"--width".to_string());
+        let no_width_arguments = None
+            == command_arguments
+            .iter()
+            .find(|v| v == &&"--width".to_string());
         if no_width_arguments && !launch_options.fullscreen {
             command_arguments.extend(vec![
                 "--width".to_string(),
@@ -493,20 +495,35 @@ impl LaunchArguments {
 
     /// spawn a command instance, you can use this to launch the game
     pub fn to_async_command(
-        &self, java_exec: JavaExec, launch_options: LaunchOptions, platform: &PlatformInfo,
+        &self,
+        java_exec: JavaExec,
+        launch_options: LaunchOptions,
+        platform: &PlatformInfo,
     ) -> Command {
         let mut command = match platform.os_type {
             OsType::Windows => {
-                let path_vars = vars().find(|v| {
-                    v.0 == "PATH"
-                }).unwrap().1.as_str().split(";").collect::<Vec<&str>>(); // todo: test it in windows
-                let powershell_folder = PathBuf::from(path_vars.into_iter().find(|v| {
-                    v.to_lowercase().contains("powershell")
-                }).unwrap());
-                let powershell_exec = powershell_folder.join("powershell.exe").to_string_lossy().to_string();
+                let vars = vars()
+                    .find(|v| v.0 == "PATH")
+                    .unwrap();
+
+                let path_vars = vars
+                    .1
+                    .as_str()
+                    .split(";")
+                    .collect::<Vec<&str>>(); // todo: test it in windows
+                let powershell_folder = PathBuf::from(
+                    path_vars
+                        .into_iter()
+                        .find(|v| v.to_lowercase().contains("powershell"))
+                        .unwrap(),
+                );
+                let powershell_exec = powershell_folder
+                    .join("powershell.exe")
+                    .to_string_lossy()
+                    .to_string();
                 Command::new(powershell_exec)
             }
-            _ => Command::new("nice")
+            _ => Command::new("nice"),
         };
 
         if let OsType::Windows = platform.os_type {
@@ -515,36 +532,55 @@ impl LaunchArguments {
 
         if platform.os_type != OsType::Windows {
             match launch_options.process_priority {
-                ProcessPriority::High => { command.args(&["-n", "0"]); }
-                ProcessPriority::AboveNormal => { command.args(&["-n", "5"]); }
+                ProcessPriority::High => {
+                    command.args(&["-n", "0"]);
+                }
+                ProcessPriority::AboveNormal => {
+                    command.args(&["-n", "5"]);
+                }
                 ProcessPriority::Normal => (), // nothing to do
-                ProcessPriority::BelowNormal => { command.args(["-n", "15"]); }
-                ProcessPriority::LOW => { command.args(["-n", "19"]); }
+                ProcessPriority::BelowNormal => {
+                    command.args(["-n", "15"]);
+                }
+                ProcessPriority::LOW => {
+                    command.args(["-n", "19"]);
+                }
             };
         }
         // todo(after java exec): add -Dfile.encoding=encoding.name() and other
         let launch_options = self.0.join(" ").to_string();
         command.arg(format!(
-            "{java} {launch_options}", java = java_exec.binary.to_string_lossy().to_string()
+            "{java} {launch_options}",
+            java = java_exec.binary.to_string_lossy().to_string()
         ));
         command
     }
 }
 
 fn resolve_classpath(
-    version: &ResolvedVersion, minecraft: &MinecraftLocation, extra_class_paths: Option<Vec<String>>,
+    version: &ResolvedVersion,
+    minecraft: &MinecraftLocation,
+    extra_class_paths: Option<Vec<String>>,
 ) -> String {
-    let mut classpath = version.libraries.iter()
+    let mut classpath = version
+        .libraries
+        .iter()
         .filter(|lib| !lib.is_native_library)
-        .map(|lib| minecraft.get_library_by_path(
-            lib.artifact.path.clone()
-        ).to_string_lossy().to_string()
-        )
+        .map(|lib| {
+            minecraft
+                .get_library_by_path(lib.artifact.path.clone())
+                .to_string_lossy()
+                .to_string()
+        })
         .collect::<Vec<String>>();
 
-    classpath.push(minecraft.get_version_jar(
-        version.id.clone(), None,
-    ).to_str().unwrap().to_string());
+    classpath.push(
+        minecraft
+            .get_version_jar(version.id.clone(), None)
+            .to_str()
+            .unwrap()
+            .to_string(),
+    );
 
     if let Some(extra_class_paths) = extra_class_paths {
         classpath.extend(extra_class_paths);
@@ -555,11 +591,13 @@ fn resolve_classpath(
 fn format(template: &str, args: HashMap<&str, String>) -> String {
     let regex = Regex::new(r"\$\{(.*?)}").unwrap();
 
-    regex.replace_all(&template, |caps: &regex::Captures| {
-        let key = &caps[1];
-        let value = args.get(key).unwrap_or(&key.to_string());
-        value.to_string()
-    }).to_string()
+    regex
+        .replace_all(&template, |caps: &regex::Captures| {
+            let key = String::from(&caps[1]);
+            let value = args.get(&caps[1]).unwrap_or(&key);
+            value.to_string()
+        })
+        .to_string()
 }
 
 /// All game launcher
@@ -577,7 +615,7 @@ fn format(template: &str, args: HashMap<&str, String>) -> String {
 /// async fn fn_name() {
 ///     let version_id = "1.19.4-fabric";
 ///     let minecraft = MinecraftLocation::new(".minecraft");
-///     let launcher = Launcher::new(version_id, minecraft, None).await;
+///     let launcher = Launcher::new(version_id, minecraft).await;
 /// }
 /// ```
 ///
@@ -596,7 +634,7 @@ fn format(template: &str, args: HashMap<&str, String>) -> String {
 ///     launch_options.game_path = Some(minecraft.root.join("instances/1.19.4"));
 ///
 ///    // create launcher instance from launch_option
-///     let launcher = Launcher::from_options(minecraft, launch_options, None);
+///     let launcher = Launcher::from_options(minecraft, launch_options);
 /// }
 /// ```
 pub struct Launcher {
@@ -606,65 +644,50 @@ pub struct Launcher {
     /// Whether to check game integrity before launching
     pub check_game_integrity: bool,
 
-    pub listeners: Option<ProcessEventListeners>,
+    pub exit_status: Option<ExitStatus>,
 }
 
 impl Launcher {
     /// spawn an instance with default launch options
-    pub async fn new(
-        version_id: &str, minecraft: MinecraftLocation, listeners: Option<ProcessEventListeners>,
-    ) -> Self {
+    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Self {
         let launch_options = LaunchOptions::new(version_id, &minecraft).await;
         Self {
             launch_options,
             minecraft,
             check_game_integrity: true,
-            listeners,
+            exit_status: None,
         }
     }
 
     /// spawn an instance with custom launch options
-    pub async fn from_options(
-        minecraft: MinecraftLocation,
-        launch_options: LaunchOptions,
-        listeners: Option<ProcessEventListeners>,
-    ) -> Self {
+    pub async fn from_options(minecraft: MinecraftLocation, launch_options: LaunchOptions) -> Self {
         Self {
             launch_options,
             minecraft,
             check_game_integrity: true,
-            listeners,
+            exit_status: None,
         }
     }
 
     /// launch game.
     ///
-    /// Note: this function will block the current thread when game running
-    pub async fn launch(self) {
+    // /// Note: this function will block the current thread when game running
+    pub async fn launch(&mut self) {
         let platform = PlatformInfo::new().await;
         let options = self.launch_options.clone();
-        let version = self.launch_options.version.parse(&self.minecraft, &platform).await;
-        let mut command = LaunchArguments::from_launch_options(
-            options.clone(),
-            version.clone(),
-        ).await.to_async_command(
-            JavaExec::new(&"/usr/lib64/jvm/java-17-openjdk-17").await,
-            options, &platform,
-        );
-        let listeners = self.listeners.unwrap_or(ProcessEventListeners::new());
-        let mut child = command
-            .stdout(Stdio::piped())
-            .spawn().unwrap();
-
-        if let Some(stdout) = child.stdout {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                let line = line.unwrap().clone();
-                // 在这里执行你想要的操作，比如打印到控制台或者处理数据
-                listeners.stdout(line.as_str());
-                if line.is_empty() {
-                }
-            }
-        }
+        let version = self
+            .launch_options
+            .version
+            .parse(&self.minecraft, &platform)
+            .await;
+        let mut command = LaunchArguments::from_launch_options(options.clone(), version.clone())
+            .await
+            .to_async_command(
+                JavaExec::new(&"/usr/lib64/jvm/java-17-openjdk-17").await,
+                options,
+                &platform,
+            );
+        let mut child = command.spawn().unwrap();
+        self.exit_status = Some(child.wait().await.unwrap());
     }
 }

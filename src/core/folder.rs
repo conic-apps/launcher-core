@@ -1,9 +1,27 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+use std::ffi::OsStr;
 use std::{
     fmt::Display,
     format,
     path::{Path, PathBuf},
 };
-use std::ffi::OsStr;
 
 #[derive(Debug, Clone)]
 /// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.
@@ -90,7 +108,9 @@ impl MinecraftLocation {
     }
 
     pub fn get_assets_index(&self, version_assets: &str) -> PathBuf {
-        self.assets.join("indexes").join(format!("{version_assets}.json"))
+        self.assets
+            .join("indexes")
+            .join(format!("{version_assets}.json"))
     }
 
     pub fn get_log_config<P: AsRef<Path>>(&self, file: P) -> PathBuf {

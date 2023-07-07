@@ -1,3 +1,21 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use tokio::fs;
 
 use crate::core::folder::MinecraftLocation;
@@ -15,9 +33,9 @@ use super::*;
 /// ### Example
 ///
 /// ```rust
-/// use mgl_core::installer::fabric::install::install_fabric;
+/// use mgl_core::install::fabric::install::install_fabric;
 /// use mgl_core::core::folder::MinecraftLocation;
-/// use mgl_core::installer::fabric::FabricLoaderArtifact;
+/// use mgl_core::install::fabric::FabricLoaderArtifact;
 ///
 /// async fn fn_name() {
 ///     let loader = FabricLoaderArtifact::new("1.19.4", "xxx").await; // xxx is your fabric loader version
@@ -158,7 +176,7 @@ pub async fn install_fabric(
 
 #[tokio::test]
 async fn test() {
-    let artifact = super::FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
+    let artifact = FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
     let location = MinecraftLocation::new("test");
     install_fabric(artifact, location, None).await;
 }

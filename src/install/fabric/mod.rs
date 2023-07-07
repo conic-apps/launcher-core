@@ -1,3 +1,21 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -22,7 +40,7 @@ pub struct FabricArtifactVersion {
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::installer::fabric::FabricArtifacts;
+/// use mgl_core::install::fabric::FabricArtifacts;
 ///
 /// async fn fn_name() {
 ///     let artifacts = FabricArtifacts::new().await;
@@ -42,7 +60,7 @@ pub struct FabricArtifacts {
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::installer::fabric::FabricLoaderArtifact;
+/// use mgl_core::install::fabric::FabricLoaderArtifact;
 ///
 /// async fn fn_name() {
 ///     let artifact = FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
@@ -64,7 +82,7 @@ pub struct FabricLoaderArtifact {
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::installer::fabric::YarnArtifactList;
+/// use mgl_core::install::fabric::YarnArtifactList;
 ///
 /// async fn fn_name() {
 ///     let artifacts = YarnArtifactList::new().await;
@@ -82,7 +100,7 @@ pub struct YarnArtifactList(Vec<FabricArtifactVersion>);
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::installer::fabric::LoaderArtifactList;
+/// use mgl_core::install::fabric::LoaderArtifactList;
 ///
 /// async fn fn_name() {
 ///     let artifacts = LoaderArtifactList::new().await;

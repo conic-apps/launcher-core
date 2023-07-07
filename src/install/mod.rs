@@ -1,14 +1,31 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use reqwest::Url;
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
+use crate::core::version::ResolvedLibrary;
 use crate::{
     core::{
         folder::{get_path, MinecraftLocation},
         task::TaskEventListeners,
-        version::{
-            self, AssetIndex, AssetIndexObject, ResolvedLibraries, ResolvedVersion, VersionManifest,
-        },
+        version::{self, AssetIndex, AssetIndexObject, ResolvedVersion, VersionManifest},
         PlatformInfo,
     },
     utils::download::{download_files, Download},
@@ -21,21 +38,21 @@ pub mod optifine;
 pub mod quilt;
 
 pub(crate) fn generate_libraries_download_list(
-    libraries: ResolvedLibraries,
+    libraries: Vec<ResolvedLibrary>,
     minecraft_location: &MinecraftLocation,
 ) -> Vec<Download<String>> {
     libraries
         .clone()
         .into_iter()
         .map(|library| Download {
-            url: format!("https://download.mcbbs.net/maven/{}", library.path),
+            url: format!("https://download.mcbbs.net/maven/{}", library.artifact.path),
             file: minecraft_location
                 .libraries
-                .join(library.path)
+                .join(library.artifact.path)
                 .to_str()
                 .unwrap()
                 .to_string(),
-            sha1: Some(library.sha1),
+            sha1: Some(library.artifact.sha1),
         })
         .collect()
 }
@@ -44,14 +61,14 @@ pub(crate) async fn generate_assets_download_list(
     asset_index: AssetIndex,
     minecraft_location: &MinecraftLocation,
 ) -> Vec<Download<String>> {
-    let asset_index_url = Url::parse(&asset_index.url).unwrap();
+    let asset_index_url = Url::parse((&asset_index.url).as_ref()).unwrap();
     let asset_index_raw = reqwest::get(asset_index_url)
         .await
         .unwrap()
         .text()
         .await
         .unwrap();
-    let asset_index_json: Value = serde_json::from_str(&asset_index_raw).unwrap();
+    let asset_index_json: Value = serde_json::from_str((&asset_index_raw).as_ref()).unwrap();
     let asset_index_object: AssetIndexObject =
         serde_json::from_value(asset_index_json["objects"].clone()).unwrap();
     let mut assets: Vec<_> = asset_index_object

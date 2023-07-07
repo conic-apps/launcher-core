@@ -16,12 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
-use std::str::FromStr;
-
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
 use crate::core::folder::MinecraftLocation;
 
@@ -313,14 +311,6 @@ pub struct Version {
     pub client_version: Option<String>,
 }
 
-impl FromStr for Version {
-    type Err = serde_json::Error;
-
-    fn from_str(raw: &String) -> Result<Version, serde_json::Error> {
-        serde_json::from_str(raw)
-    }
-}
-
 impl Version {
     pub fn from_value(raw: Value) -> Result<Version, serde_json::Error> {
         serde_json::from_value(raw)
@@ -336,8 +326,12 @@ impl Version {
             .join(format!("{}.json", version_name));
 
         let raw = read_to_string(path)?;
-        let version: Version = serde_json::from_str(&raw)?;
+        let version: Version = serde_json::from_str((&raw).as_ref())?;
         Ok(version)
+    }
+
+    pub fn from_str(raw: &String) -> Result<Version, serde_json::Error> {
+        serde_json::from_str(raw.as_ref())
     }
 
     /// parse a Minecraft version json
@@ -361,7 +355,7 @@ impl Version {
                 .join(format!("{}.json", inherits_from_unwrap.clone()));
             path_chain.push(path.clone());
             let version_json = read_to_string(path).unwrap();
-            let version_json: Version = serde_json::from_str(&version_json).unwrap();
+            let version_json: Version = serde_json::from_str((&version_json).as_ref()).unwrap();
 
             versions.push(version_json.clone());
             inherits_from = version_json.inherits_from;
@@ -423,12 +417,12 @@ impl Version {
 
         if main_class == ""
             || assets_index
-            == (AssetIndex {
-            size: 0,
-            url: "".to_string(),
-            id: "".to_string(),
-            total_size: 0,
-        })
+                == (AssetIndex {
+                    size: 0,
+                    url: "".to_string(),
+                    id: "".to_string(),
+                    total_size: 0,
+                })
             || downloads.len() == 0
         {
             panic!("Bad Version JSON");
@@ -498,9 +492,7 @@ async fn resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> Ve
                     .as_array()
                     .unwrap()
                     .iter()
-                    .map(
-                        |value| value.as_str().unwrap().to_string()
-                    )
+                    .map(|value| value.as_str().unwrap().to_string()),
             );
         }
     }
@@ -585,7 +577,10 @@ fn check_allowed(rules: Vec<Value>, platform: &PlatformInfo) -> bool {
             continue;
         }
         let version = os["version"].as_str().unwrap();
-        if Regex::is_match(&Regex::new(version).unwrap(), &platform.version.to_string()) {
+        if Regex::is_match(
+            &Regex::new(version).unwrap(),
+            (&platform.version.to_string()).as_ref(),
+        ) {
             allow = action;
         }
         // todo: check `features`
@@ -622,11 +617,7 @@ impl LibraryInfo {
     pub fn from_value(lib: &Value) -> Self {
         let name = lib["name"].as_str().unwrap().to_string();
         let split_name = name.split("@").collect::<Vec<&str>>();
-        let body = split_name
-            .get(0)
-            .unwrap()
-            .split(":")
-            .collect::<Vec<&str>>();
+        let body = split_name.get(0).unwrap().split(":").collect::<Vec<&str>>();
         let r#type = split_name.get(1).unwrap_or(&"jar").to_string();
         let group_id = body.get(0).unwrap().to_string();
         let artifact_id = body.get(1).unwrap().to_string();
