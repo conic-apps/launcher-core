@@ -35,7 +35,7 @@ pub struct FabricArtifactVersion {
 
 /// Fabric Artifacts
 ///
-/// ### Example
+/// # Example
 ///
 /// basic usage:
 ///
@@ -55,7 +55,7 @@ pub struct FabricArtifacts {
 
 /// Fabric Loader Artifact
 ///
-/// ### Example
+/// # Example
 ///
 /// basic usage:
 ///
@@ -77,7 +77,7 @@ pub struct FabricLoaderArtifact {
 
 /// Yarn Artifacts
 ///
-/// ### Example
+/// # Example
 ///
 /// basic usage:
 ///
@@ -95,7 +95,7 @@ pub struct YarnArtifactList(Vec<FabricArtifactVersion>);
 
 /// Loader Artifacts
 ///
-/// ### Example
+/// # Example
 ///
 /// basic usage:
 ///

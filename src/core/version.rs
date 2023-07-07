@@ -283,7 +283,8 @@ pub struct ResolvedVersion {
 /// use mgl_core::core::PlatformInfo;
 ///
 /// async fn fn_name(version: Version) {
-///     let resolved_version = version.parse(&MinecraftLocation::new("test"), PlatformInfo::new()).await;
+///     let platform = PlatformInfo::new().await;
+///     let resolved_version = version.parse(&MinecraftLocation::new("test"), &platform).await;
 ///     println!("{:#?}", resolved_version);
 /// }
 /// ```

@@ -16,12 +16,58 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+//! A launcher for game
+//!
+//! This module contains the [`Launcher`] [`LauncherOptions`] struct, the [`launch`] function for
+//! launching a game, and several error types that may result from
+//! working with [`Launcher`].
+//!
+//! # Examples
+//!
+//! There are multiple ways to create a new [`LaunchOptions`] from a string literal:
+//!
+//! ```
+//! use mgl_core::core::folder::MinecraftLocation;
+//! use mgl_core::launch::LaunchOptions;
+//!
+//! async fn fn_name() {
+//!     let version_id = "1.19.4";
+//!     let minecraft = MinecraftLocation::new(".minecraft");
+//!     let options = LaunchOptions::new("1.19.4", minecraft);
+//! }
+//! ```
+//!
+//! Then you can modify it with user custom options,
+//! The step of creating default startup options is omitted here, in order to test through us here
+//! assuming that the default options have been passed as parameters:
+//!
+//! ```
+//! use mgl_core::launch::{GC, LaunchOptions};
+//!
+//! async fn fn_name2(default_options: &LaunchOptions) {
+//!     let mut options = default_options.clone();
+//!     options.game_profile.name = "Broken Deer".to_string();
+//! }
+//! ```
+//!
+//! Finally, you can use the [`LaunchOptions`] to build a [`Launcher`] instance, then launch the
+//! game using [`Launcher::launch()`].
+//!
+//! ```
+//! use mgl_core::core::folder::MinecraftLocation;
+//! use mgl_core::launch::{Launcher, LaunchOptions};
+//!
+//!  async fn fn_name3(options: LaunchOptions) {
+//!     let mut launcher = Launcher::from_options(options).await;
+//!     launcher.launch().await;
+//! }
+//! ```
+
 use crate::core::folder::MinecraftLocation;
 use crate::core::version::{ResolvedVersion, Version};
 use crate::core::{JavaExec, OsType, PlatformInfo, DELIMITER};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env::vars;
@@ -42,25 +88,25 @@ pub static DEFAULT_EXTRA_JVM_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
     ]
 });
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct GameProfile {
     pub name: String,
     pub uuid: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub enum UserType {
     Mojang,
     Legacy,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Server {
     pub ip: String,
     pub port: Option<u16>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct YggdrasilAgent {
     /// The jar file path of the authlib-injector
     pub jar: PathBuf,
@@ -73,7 +119,7 @@ pub struct YggdrasilAgent {
 }
 
 /// Game process priority, invalid on windows
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ProcessPriority {
     High,
     AboveNormal,
@@ -83,7 +129,7 @@ pub enum ProcessPriority {
 }
 
 /// User custom jvm gc
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub enum GC {
     Serial,
     Parallel,
@@ -92,7 +138,7 @@ pub enum GC {
     Z,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 /// Launch options for game
 pub struct LaunchOptions {
     /// User selected game profile.
@@ -207,11 +253,13 @@ pub struct LaunchOptions {
     pub version_id: String,
 
     pub gc: GC,
+
+    pub minecraft_location: MinecraftLocation,
 }
 
 impl LaunchOptions {
     /// spawn an instance with default launch options
-    async fn new(version_id: &str, minecraft: &MinecraftLocation) -> Self {
+    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Self {
         let version_json_path = minecraft.get_version_json(version_id);
         let raw_version_json = tokio::fs::read_to_string(version_json_path).await.unwrap();
         let version_json: Version = serde_json::from_str((&raw_version_json).as_ref()).unwrap();
@@ -253,6 +301,7 @@ impl LaunchOptions {
             process_priority: ProcessPriority::Normal,
             version_id: version_id.to_string(),
             gc: GC::G1,
+            minecraft_location: minecraft.clone(),
         }
     }
 }
@@ -378,7 +427,7 @@ impl LaunchArguments {
             "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false".to_string(),
             "-Dlog4j2.formatMsgNoLookups=true".to_string(),
         ]); // todo: test the jvm args
-        // todo: support proxy
+            // todo: support proxy
 
         let mut jvm_options: HashMap<&str, String> = HashMap::new();
         jvm_options.insert(
@@ -479,8 +528,8 @@ impl LaunchArguments {
         }
         let no_width_arguments = None
             == command_arguments
-            .iter()
-            .find(|v| v == &&"--width".to_string());
+                .iter()
+                .find(|v| v == &&"--width".to_string());
         if no_width_arguments && !launch_options.fullscreen {
             command_arguments.extend(vec![
                 "--width".to_string(),
@@ -502,15 +551,9 @@ impl LaunchArguments {
     ) -> Command {
         let mut command = match platform.os_type {
             OsType::Windows => {
-                let vars = vars()
-                    .find(|v| v.0 == "PATH")
-                    .unwrap();
+                let vars = vars().find(|v| v.0 == "PATH").unwrap();
 
-                let path_vars = vars
-                    .1
-                    .as_str()
-                    .split(";")
-                    .collect::<Vec<&str>>(); // todo: test it in windows
+                let path_vars = vars.1.as_str().split(";").collect::<Vec<&str>>(); // todo: test it in windows
                 let powershell_folder = PathBuf::from(
                     path_vars
                         .into_iter()
@@ -602,41 +645,7 @@ fn format(template: &str, args: HashMap<&str, String>) -> String {
 
 /// All game launcher
 ///
-/// Use Launcher::new to spawn an instance with minimal launch options
-///
-/// ### Example
-///
-/// basic usage 1:
-///
-/// ```rust
-/// use mgl_core::core::folder::MinecraftLocation;
-/// use mgl_core::launch::Launcher;
-///
-/// async fn fn_name() {
-///     let version_id = "1.19.4-fabric";
-///     let minecraft = MinecraftLocation::new(".minecraft");
-///     let launcher = Launcher::new(version_id, minecraft).await;
-/// }
-/// ```
-///
-/// basic usage 2:
-///
-/// ```rust
-///
-/// use mgl_core::core::folder::MinecraftLocation;
-/// use mgl_core::launch::{Launcher, LaunchOptions};
-///
-///  async fn fn_name() {
-///     let minecraft = MinecraftLocation::new(".minecraft");
-///     let mut launch_options = LaunchOptions::default();
-///
-///     // Modify default launch options
-///     launch_options.game_path = Some(minecraft.root.join("instances/1.19.4"));
-///
-///    // create launcher instance from launch_option
-///     let launcher = Launcher::from_options(minecraft, launch_options);
-/// }
-/// ```
+/// Use `Launcher::new` to spawn an instance with minimal launch options
 pub struct Launcher {
     pub launch_options: LaunchOptions,
     pub minecraft: MinecraftLocation,
@@ -650,7 +659,7 @@ pub struct Launcher {
 impl Launcher {
     /// spawn an instance with default launch options
     pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Self {
-        let launch_options = LaunchOptions::new(version_id, &minecraft).await;
+        let launch_options = LaunchOptions::new(version_id, minecraft.clone()).await;
         Self {
             launch_options,
             minecraft,
@@ -660,10 +669,10 @@ impl Launcher {
     }
 
     /// spawn an instance with custom launch options
-    pub async fn from_options(minecraft: MinecraftLocation, launch_options: LaunchOptions) -> Self {
+    pub async fn from_options(launch_options: LaunchOptions) -> Self {
         Self {
+            minecraft: launch_options.minecraft_location.clone(),
             launch_options,
-            minecraft,
             check_game_integrity: true,
             exit_status: None,
         }

@@ -112,7 +112,6 @@ impl PlatformInfo {
     }
 }
 
-// todo
 pub struct JavaExec {
     pub binary: PathBuf,
     pub version: String,
