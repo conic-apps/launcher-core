@@ -1,8 +1,8 @@
-use tokio::fs::{create_dir_all, self};
+use tokio::fs::{self, create_dir_all};
 
-use crate::core::{version::LibraryInfo, folder::MinecraftLocation};
+use crate::core::{folder::MinecraftLocation, version::LibraryInfo};
 
-use super::{*, install_profile::InstallProfileLegacy};
+use super::{install_profile::InstallProfileLegacy, *};
 
 pub(super) async fn install_legacy_forge_from_zip(
     entries: ForgeLegacyInstallerEntriesPatten,

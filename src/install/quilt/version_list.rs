@@ -21,4 +21,3 @@ async fn test1() {
     let version_list = get_quilt_version_list(Some("https://meta.quiltmc.org".to_string())).await;
     println!("{:#?}", version_list);
 }
-

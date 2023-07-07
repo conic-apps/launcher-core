@@ -2,12 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::unzip::Entry;
 
-pub mod install_profile;
 pub mod install;
-pub mod new_install;
+pub mod install_profile;
 pub mod legacy_install;
+pub mod new_install;
 pub mod version_list;
-
 
 pub struct ForgeVersion {
     pub installer: ForgeVersionInstaller,

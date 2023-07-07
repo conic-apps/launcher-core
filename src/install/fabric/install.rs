@@ -5,20 +5,20 @@ use crate::core::folder::MinecraftLocation;
 use super::*;
 
 /// Generate the fabric version JSON file to disk according to yarn and loader.
-/// 
+///
 /// ### Arguments
-/// 
+///
 /// * `loader` - The fabric loader version.
 /// * `minecraft_location` - The minecraft location.
 /// * `options` - The install options.
-/// 
+///
 /// ### Example
-/// 
+///
 /// ```rust
 /// use mgl_core::installer::fabric::install::install_fabric;
 /// use mgl_core::core::folder::MinecraftLocation;
 /// use mgl_core::installer::fabric::FabricLoaderArtifact;
-/// 
+///
 /// async fn fn_name() {
 ///     let loader = FabricLoaderArtifact::new("1.19.4", "xxx").await; // xxx is your fabric loader version
 ///     let minecraft_location = MinecraftLocation::new("test");
@@ -36,9 +36,9 @@ pub async fn install_fabric(
             inherits_from: None,
             version_id: None,
             size: None,
-            yarn_version: None
+            yarn_version: None,
         },
-        Some(options) => options
+        Some(options) => options,
     };
     let yarn: Option<String>;
     let side = options.size.unwrap_or(FabricInstallSide::Client);
@@ -110,7 +110,9 @@ pub async fn install_fabric(
     let inherits_from = options.inherits_from.unwrap_or(minecraft_version);
 
     let json_file_path = minecraft_location.get_version_json(&id.clone().unwrap());
-    fs::create_dir_all(json_file_path.parent().unwrap()).await.unwrap();
+    fs::create_dir_all(json_file_path.parent().unwrap())
+        .await
+        .unwrap();
     if let Ok(metadata) = fs::metadata(&json_file_path).await {
         if metadata.is_file() {
             fs::remove_file(&json_file_path).await.unwrap();

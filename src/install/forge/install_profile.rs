@@ -53,7 +53,7 @@ pub struct InstallProfile {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallProfileLegacy {
-    pub install :Value,
+    pub install: Value,
     pub version_info: Option<Version>,
 }
 

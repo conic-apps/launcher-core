@@ -1,6 +1,6 @@
 use tokio::fs::{self, create_dir_all};
 
-use crate::core::{version::Version, folder::MinecraftLocation};
+use crate::core::{folder::MinecraftLocation, version::Version};
 
 use super::DEFAULT_META_URL;
 
@@ -12,9 +12,9 @@ pub async fn install_quilt_version(
 ) {
     let remote = remote.unwrap_or(DEFAULT_META_URL.to_string());
     let url = format!("{remote}/v3/versions/loader/{mcversion}/{quilt_version}/profile/json");
-    
+
     let response = reqwest::get(url).await.unwrap();
-    
+
     let quilt_version: Version = response.json().await.unwrap();
 
     let version_name = quilt_version.id.clone();

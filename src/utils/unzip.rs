@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs::File, io::{Read, self}, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{self, Read},
+    path::PathBuf,
+};
 
 use tokio::fs::create_dir_all;
 use zip::{read::ZipFile, CompressionMethod, DateTime, ZipArchive};
@@ -68,7 +73,7 @@ impl Entry {
         entries
     }
 
-    pub fn get_entries_record(entries: Vec<Entry>) -> HashMap<String, Entry>{
+    pub fn get_entries_record(entries: Vec<Entry>) -> HashMap<String, Entry> {
         let mut resolved_entries = HashMap::with_capacity(entries.len());
         for entry in entries {
             resolved_entries.insert(entry.name.clone(), entry);
@@ -88,7 +93,10 @@ pub fn open(path: PathBuf) -> ZipArchive<File> {
     ZipArchive::new(file).unwrap()
 }
 
-pub fn filter_entries<R: Read + io::Seek>(zip: &mut ZipArchive<R>, entries: &Vec<String>) -> HashMap<String, Entry> {
+pub fn filter_entries<R: Read + io::Seek>(
+    zip: &mut ZipArchive<R>,
+    entries: &Vec<String>,
+) -> HashMap<String, Entry> {
     let mut resolved_entries = HashMap::with_capacity(entries.len());
     for i in 0..zip.len() {
         let mut zip_file = zip.by_index(i).unwrap();
@@ -103,14 +111,13 @@ pub fn filter_entries<R: Read + io::Seek>(zip: &mut ZipArchive<R>, entries: &Vec
     resolved_entries
 }
 
-
-pub async fn decompression_file(
-    zip_archive: &mut ZipArchive<File>,
-    from: String,
-    to: PathBuf,
-){
+pub async fn decompression_file(zip_archive: &mut ZipArchive<File>, from: String, to: PathBuf) {
     let mut buf: Vec<u8> = Vec::new();
-    zip_archive.by_name(&from).unwrap().read_to_end(&mut buf).unwrap();
+    zip_archive
+        .by_name(&from)
+        .unwrap()
+        .read_to_end(&mut buf)
+        .unwrap();
     tokio::fs::write(to, buf).await.unwrap();
 }
 

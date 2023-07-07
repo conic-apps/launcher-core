@@ -26,7 +26,8 @@ impl OptifineVersionList {
             .await
             .unwrap()
             .json::<OptifineVersionList>()
-            .await.unwrap()
+            .await
+            .unwrap()
         // todo: 返回404时会导致解析失败，要返回Err()
     }
 }

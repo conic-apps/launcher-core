@@ -11,7 +11,7 @@ use reqwest::Response;
 use zip::ZipArchive;
 
 use crate::{
-    core::{version::Artifact, folder::MinecraftLocation},
+    core::{folder::MinecraftLocation, version::Artifact},
     install::forge::{
         install_profile::{InstallProfile, InstallProfileLegacy},
         legacy_install::install_legacy_forge_from_zip,

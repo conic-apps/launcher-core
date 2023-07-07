@@ -1,3 +1,3 @@
 pub mod download;
-pub mod unzip;
 pub mod sha1;
+pub mod unzip;

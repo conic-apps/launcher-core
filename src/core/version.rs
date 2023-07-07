@@ -1,4 +1,23 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
+use std::str::FromStr;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -135,7 +154,7 @@ pub enum Library {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub enum LaunchArgument {
     String(String),
-    Object(serde_json::map::Map<String, serde_json::Value>),
+    Object(serde_json::map::Map<String, Value>),
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -147,15 +166,23 @@ pub struct Platform {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Arguments {
-    pub game: Option<Vec<serde_json::Value>>,
-    pub jvm: Option<Vec<serde_json::Value>>,
+    pub game: Option<Vec<Value>>,
+    pub jvm: Option<Vec<Value>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Logging {
-    pub file: Download,
+    pub file: LoggingFileDownload,
     pub argument: String,
     pub r#type: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct LoggingFileDownload {
+    pub id: String,
+    pub sha1: String,
+    pub size: u64,
+    pub url: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -182,7 +209,7 @@ pub struct ResolvedVersion {
     /// The asset index id of this version. Should be something like `1.14`, `1.12`.
     pub assets: String,
     pub downloads: Option<HashMap<String, Download>>,
-    pub libraries: ResolvedLibraries,
+    pub libraries: Vec<ResolvedLibrary>,
     pub minimum_launcher_version: i32,
     pub release_time: String,
     pub time: String,
@@ -235,6 +262,7 @@ pub struct ResolvedVersion {
 /// usage 2:
 ///
 /// ```rust
+/// use std::str::FromStr;
 /// use mgl_core::core::version::Version;
 ///
 /// async fn fn_name() {
@@ -254,9 +282,10 @@ pub struct ResolvedVersion {
 /// ```rust
 /// use mgl_core::core::version::Version;
 /// use mgl_core::core::folder::MinecraftLocation;
+/// use mgl_core::core::PlatformInfo;
 ///
 /// async fn fn_name(version: Version) {
-///     let resolved_version = version.parse(MinecraftLocation::new("test")).await;
+///     let resolved_version = version.parse(&MinecraftLocation::new("test"), PlatformInfo::new()).await;
 ///     println!("{:#?}", resolved_version);
 /// }
 /// ```
@@ -272,7 +301,7 @@ pub struct Version {
     pub minecraft_arguments: Option<String>,
     pub arguments: Option<Arguments>,
     pub main_class: Option<String>,
-    pub libraries: Option<Vec<serde_json::Value>>,
+    pub libraries: Option<Vec<Value>>,
     pub jar: Option<String>,
     pub asset_index: Option<AssetIndex>,
     pub assets: Option<String>,
@@ -284,11 +313,15 @@ pub struct Version {
     pub client_version: Option<String>,
 }
 
-impl Version {
-    pub fn from_str(raw: &str) -> Result<Version, serde_json::Error> {
+impl FromStr for Version {
+    type Err = serde_json::Error;
+
+    fn from_str(raw: &String) -> Result<Version, serde_json::Error> {
         serde_json::from_str(raw)
     }
+}
 
+impl Version {
     pub fn from_value(raw: Value) -> Result<Version, serde_json::Error> {
         serde_json::from_value(raw)
     }
@@ -310,11 +343,11 @@ impl Version {
     /// parse a Minecraft version json
     pub async fn parse(
         &self,
-        minecraft: MinecraftLocation,
+        minecraft: &MinecraftLocation,
         platform: &PlatformInfo,
     ) -> ResolvedVersion {
         let mut inherits_from = self.inherits_from.clone();
-        let versions_folder = minecraft.versions;
+        let versions_folder = &minecraft.versions;
         let mut versions = Vec::new();
         let mut inheritances = Vec::new();
         let mut path_chain = Vec::new();
@@ -390,12 +423,12 @@ impl Version {
 
         if main_class == ""
             || assets_index
-                == (AssetIndex {
-                    size: 0,
-                    url: "".to_string(),
-                    id: "".to_string(),
-                    total_size: 0,
-                })
+            == (AssetIndex {
+            size: 0,
+            url: "".to_string(),
+            id: "".to_string(),
+            total_size: 0,
+        })
             || downloads.len() == 0
         {
             panic!("Bad Version JSON");
@@ -429,17 +462,21 @@ impl Version {
 
 #[derive(Debug, Clone)]
 pub struct ResolvedArguments {
-    pub game: String,
-    pub jvm: String,
+    pub game: Vec<String>,
+    pub jvm: Vec<String>,
 }
 
-pub type ResolvedLibraries = Vec<Artifact>;
+#[derive(Debug, Clone)]
+pub struct ResolvedLibrary {
+    pub artifact: Artifact,
+    pub is_native_library: bool,
+}
 
-async fn resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> String {
-    let mut result = String::new();
+async fn resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> Vec<String> {
+    let mut result = Vec::with_capacity(arguments.len());
     for argument in arguments {
         if argument.is_string() {
-            result.push_str(&format!("{} ", argument.as_str().unwrap()));
+            result.push(argument.as_str().unwrap().to_string());
             continue;
         }
         if !argument.is_object() {
@@ -447,26 +484,31 @@ async fn resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> St
         }
         let rules = argument["rules"].as_array();
         if let Some(rules) = rules {
-            if !check_allowed(rules.clone(), &platform) {
+            if !check_allowed(rules.clone(), platform) {
                 continue;
             };
         }
         if argument["value"].is_string() {
-            result.push_str(&format!("{} ", argument["value"].as_str().unwrap_or("")));
+            result.push(argument["value"].as_str().unwrap().to_string());
             continue;
         }
         if argument["value"].is_array() {
-            let values = argument["value"].as_array().unwrap_or(&vec![]).clone();
-            for value in values {
-                result.push_str(&format!("{} ", value.as_str().unwrap()));
-            }
+            result.extend(
+                argument["value"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(
+                        |value| value.as_str().unwrap().to_string()
+                    )
+            );
         }
     }
     result
 }
 
-async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> ResolvedLibraries {
-    let mut result: Vec<Artifact> = Vec::new();
+async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Vec<ResolvedLibrary> {
+    let mut result = Vec::new();
     for library in libraries {
         let rules = library["rules"].as_array();
         // check rules
@@ -476,7 +518,10 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Re
             }
         }
         if library["downloads"]["artifact"].is_object() {
-            result.push(serde_json::from_value(library["downloads"]["artifact"].clone()).unwrap());
+            result.push(ResolvedLibrary {
+                artifact: serde_json::from_value(library["downloads"]["artifact"].clone()).unwrap(),
+                is_native_library: library["downloads"]["classifiers"].is_object(),
+            });
             continue;
         }
         let name = library["name"].as_str();
@@ -498,11 +543,14 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Re
             url = "http://files.minecraftforge.net/maven/"
         }
         let path = format!("{package}/{name}/{version}/{name}-{version}.jar");
-        result.push(Artifact {
-            sha1: "".to_string(),
-            size: 0,
-            url: format!("{url}{path}"),
-            path,
+        result.push(ResolvedLibrary {
+            artifact: Artifact {
+                sha1: "".to_string(),
+                size: 0,
+                url: format!("{url}{path}"),
+                path,
+            },
+            is_native_library: false,
         });
     }
     result
@@ -573,13 +621,13 @@ impl LibraryInfo {
     /// * `lib` - The name of library of the library itself
     pub fn from_value(lib: &Value) -> Self {
         let name = lib["name"].as_str().unwrap().to_string();
-        let splited_name = name.split("@").collect::<Vec<&str>>();
-        let body = splited_name
+        let split_name = name.split("@").collect::<Vec<&str>>();
+        let body = split_name
             .get(0)
             .unwrap()
             .split(":")
             .collect::<Vec<&str>>();
-        let r#type = splited_name.get(1).unwrap_or(&"jar").to_string();
+        let r#type = split_name.get(1).unwrap_or(&"jar").to_string();
         let group_id = body.get(0).unwrap().to_string();
         let artifact_id = body.get(1).unwrap().to_string();
         let version = body.get(2).unwrap().to_string();

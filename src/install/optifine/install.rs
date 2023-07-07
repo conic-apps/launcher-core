@@ -1,11 +1,30 @@
+/*
+ * Magical Launcher Core
+ * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
+ *
+ * This program is free software, you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use std::{ffi::OsStr, fmt::Display, path::Path};
 
 use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{
-    install::optifine::DEFAULT_META_URL,
-    utils::download::{download, Download}, core::folder::MinecraftLocation,
+    core::folder::MinecraftLocation,
+    utils::download::{download, Download},
 };
+use crate::core::DELIMITER;
 
 use super::InstallOptifineOptions;
 
@@ -13,7 +32,7 @@ const OPTIFINE_INSTALL_HELPER: &[u8] = include_bytes!("./optifine-installer.jar"
 
 /// Download forge installer
 pub async fn download_optifine_installer<P, D>(
-    mcversion: &str,
+    minecraft_version: &str,
     optifine_type: &str,
     optifine_patch: &str,
     dest_path: P,
@@ -23,8 +42,8 @@ pub async fn download_optifine_installer<P, D>(
     D: Display,
 {
     let url = match remote {
-        None => format!("{DEFAULT_META_URL}/{mcversion}/{optifine_type}/{optifine_patch}"),
-        Some(remote) => format!("{remote}/{mcversion}/{optifine_type}/{optifine_patch}"),
+        None => format!("{DEFAULT_META_URL}/{minecraft_version}/{optifine_type}/{optifine_patch}"),
+        Some(remote) => format!("{remote}/{minecraft_version}/{optifine_type}/{optifine_patch}"),
     };
     download(Download {
         url,
@@ -44,7 +63,7 @@ pub async fn download_optifine_installer<P, D>(
 pub async fn install_optifine(
     minecraft: MinecraftLocation,
     version_name: &str,
-    mcversion: &str,
+    minecraft_version: &str,
     optifine_type: &str,
     optifine_patch: &str,
     java_executable_path: &str,
@@ -59,11 +78,11 @@ pub async fn install_optifine(
         },
         Some(options) => options,
     };
-    let full_path = minecraft.get_library_by_path(format!("net/optifine/{mcversion}-{optifine_type}-{optifine_patch}/Optifine-{mcversion}-{optifine_type}-{optifine_patch}.jar"));
+    let full_path = minecraft.get_library_by_path(format!("net/optifine/{minecraft_version}-{optifine_type}-{optifine_patch}/Optifine-{minecraft_version}-{optifine_type}-{optifine_patch}.jar"));
     let full_path = full_path.to_str().unwrap();
 
     download_optifine_installer(
-        mcversion,
+        minecraft_version,
         optifine_type,
         optifine_patch,
         full_path,
@@ -103,7 +122,7 @@ pub async fn install_optifine(
 
     command.args(&[
         "-cp",
-        &format!("{installer_path}:{full_path}"),
+        &format!("{installer_path}{}{full_path}", DELIMITER),
         "net.stevexmh.OptifineInstaller",
         minecraft.root.to_str().unwrap(),
         version_name,
