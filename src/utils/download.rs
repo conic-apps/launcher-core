@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 
-use crate::core::task::EventListeners;
+use crate::core::task::TaskEventListeners;
 
 use super::sha1::calculate_sha1_from_read;
 
@@ -39,9 +39,7 @@ pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(download_task: Download<P>)
     response
 }
 
-pub fn filter_existing_files() {}
-
-pub async fn download_files(download_tasks: Vec<Download<String>>, listeners: EventListeners) {
+pub async fn download_files(download_tasks: Vec<Download<String>>, listeners: TaskEventListeners) {
     listeners.start();
     listeners.progress(0, 0, 1);
     let download_tasks: Vec<_> = download_tasks
