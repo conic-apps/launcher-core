@@ -16,8 +16,3 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod core;
-pub mod install;
-pub mod launch;
-pub mod utils;
-pub mod mod_parser;

@@ -22,3 +22,4 @@ deflate = "0.8"
 sha1 = "0.6"
 uuid = { version = "1.4.0", features = ["v4", "fast-rng", "macro-diagnostics", ] }
 num_cpus = "1.0"
+anyhow = "1.0"
