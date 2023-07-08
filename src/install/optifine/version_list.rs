@@ -16,9 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::install::optifine::DEFAULT_META_URL;
+use super::DEFAULT_META_URL;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptifineVersionListItem {
@@ -35,18 +36,15 @@ pub struct OptifineVersionListItem {
 pub struct OptifineVersionList(Vec<OptifineVersionListItem>);
 
 impl OptifineVersionList {
-    pub async fn new(mcversion: &str, remote: Option<String>) -> Self {
+    pub async fn new(mcversion: &str, remote: Option<String>) -> Result<Self> {
         let url = match remote {
             Some(remote) => format!("{remote}/{mcversion}"),
             None => format!("{DEFAULT_META_URL}/{mcversion}"),
         };
-        reqwest::get(url)
-            .await
-            .unwrap()
+        Ok(reqwest::get(url)
+            .await?
             .json::<OptifineVersionList>()
-            .await
-            .unwrap()
-        // todo: 返回404时会导致解析失败，要返回Err()
+            .await?)
     }
 }
 

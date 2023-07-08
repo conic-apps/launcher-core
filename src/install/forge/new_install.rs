@@ -22,6 +22,7 @@ use std::{
     path::PathBuf,
 };
 
+use anyhow::Result;
 use serde_json::Value;
 use tokio::fs::{self, create_dir_all};
 use zip::ZipArchive;
@@ -32,8 +33,8 @@ use crate::{
 };
 
 use super::{
-    install_profile::{InstallProfile, InstallProfileData},
     *,
+    install_profile::{InstallProfile, InstallProfileData},
 };
 
 pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
@@ -44,10 +45,10 @@ pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
     jar_path: PathBuf,
     profile: InstallProfile,
     options: Option<InstallForgeOptions>,
-) -> String {
+) -> Result<String> {
     let version_json_raw = entries.version_json.unwrap().content;
     let mut version_json: Value =
-        serde_json::from_str((&String::from_utf8(version_json_raw).unwrap()).as_ref()).unwrap();
+        serde_json::from_str((&String::from_utf8(version_json_raw)?).as_ref())?;
 
     //  apply override for inheritsFrom
     if let Some(options) = options {
@@ -70,9 +71,7 @@ pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
 
     let mut decompression_tasks: Vec<(String, PathBuf)> = Vec::new();
 
-    create_dir_all(version_json_path.parent().unwrap())
-        .await
-        .unwrap();
+    create_dir_all(version_json_path.parent().unwrap()).await?;
 
     if let Some(_) = entries.forge_universal_jar {
         decompression_tasks.push((
@@ -148,53 +147,43 @@ pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
             minecraft.get_library_by_path(&file_name[file_name.find("/").unwrap() + 1..]),
             forge_jar.content,
         )
-        .await
-        .unwrap();
+            .await?;
     }
 
-    let unpack_data = |entry: Entry| async {
+    let unpack_data = |entry: Entry| -> Result<()> {
         let path = data_root.clone().join(entry.name);
-        create_dir_all(path.parent().unwrap()).await.unwrap();
-        fs::write(path, entry.content).await.unwrap();
+        std::fs::create_dir_all(path.parent().unwrap())?;
+        std::fs::write(path, entry.content)?;
+        Ok(())
     };
 
     if let Some(run_bat) = entries.run_bat {
-        unpack_data(run_bat).await;
+        unpack_data(run_bat)?;
     }
     if let Some(run_sh) = entries.run_sh {
-        unpack_data(run_sh).await;
+        unpack_data(run_sh)?;
     }
     if let Some(win_args) = entries.win_args {
-        unpack_data(win_args).await;
+        unpack_data(win_args)?;
     }
     if let Some(unix_args) = entries.unix_args {
-        unpack_data(unix_args).await;
+        unpack_data(unix_args)?;
     }
     if let Some(unix_jvm_args) = entries.user_jvm_args {
-        unpack_data(unix_jvm_args).await;
+        unpack_data(unix_jvm_args)?;
     }
 
-    create_dir_all(install_json_path.parent().unwrap())
-        .await
-        .unwrap();
-    fs::write(
-        install_json_path,
-        serde_json::to_string_pretty(&profile).unwrap(),
-    )
-    .await
-    .unwrap();
+    create_dir_all(install_json_path.parent().unwrap()).await?;
+    fs::write(install_json_path, serde_json::to_string_pretty(&profile)?).await?;
 
-    create_dir_all(version_json_path.parent().unwrap())
-        .await
-        .unwrap();
+    create_dir_all(version_json_path.parent().unwrap()).await?;
     fs::write(
         version_json_path,
-        serde_json::to_string_pretty(&version_json).unwrap(),
+        serde_json::to_string_pretty(&version_json)?,
     )
-    .await
-    .unwrap();
+        .await?;
 
     decompression_files(zip, decompression_tasks).await;
 
-    Version::from_value(version_json).unwrap().id
+    Ok(Version::from_value(version_json)?.id)
 }

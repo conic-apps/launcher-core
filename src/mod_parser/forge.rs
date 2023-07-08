@@ -20,16 +20,17 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
 
-use crate::{
-    mod_parser::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod},
-    utils::unzip::filter_entries,
-};
 use anyhow::Result;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use toml::Table;
 use zip::ZipArchive;
+
+use crate::{
+    mod_parser::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod},
+    utils::unzip::filter_entries,
+};
 
 /// Represent the forge `mcmod.info` format.
 #[derive(Debug, Clone, Deserialize, Serialize)]

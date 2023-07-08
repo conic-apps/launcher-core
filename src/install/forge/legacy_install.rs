@@ -16,18 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use anyhow::Result;
 use tokio::fs::{self, create_dir_all};
 
 use crate::core::{folder::MinecraftLocation, version::LibraryInfo};
 
-use super::{install_profile::InstallProfileLegacy, *};
+use super::{*, install_profile::InstallProfileLegacy};
 
 pub(super) async fn install_legacy_forge_from_zip(
     entries: ForgeLegacyInstallerEntriesPatten,
     profile: InstallProfileLegacy,
     minecraft: MinecraftLocation,
     options: Option<InstallForgeOptions>,
-) {
+) -> Result<()> {
     let options = match options {
         Some(options) => options,
         None => InstallForgeOptions {
@@ -52,7 +53,7 @@ pub(super) async fn install_legacy_forge_from_zip(
 
     create_dir_all(&version_json_path.parent().unwrap())
         .await
-        .unwrap();
+        ?;
     let library = version_json.libraries.clone().unwrap();
     let library = library
         .iter()
@@ -67,10 +68,10 @@ pub(super) async fn install_legacy_forge_from_zip(
 
     fs::write(
         version_json_path,
-        serde_json::to_string_pretty(&version_json).unwrap(),
+        serde_json::to_string_pretty(&version_json)?,
     )
-    .await
-    .unwrap();
+        .await
+        ?;
 
     create_dir_all(
         minecraft
@@ -78,12 +79,14 @@ pub(super) async fn install_legacy_forge_from_zip(
             .parent()
             .unwrap(),
     )
-    .await
-    .unwrap();
+        .await
+        ?;
     fs::write(
         minecraft.get_library_by_path(&library.path),
         entries.legacy_universal_jar.content,
     )
-    .await
-    .unwrap();
+        .await
+        ?;
+
+    Ok(())
 }

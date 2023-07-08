@@ -16,11 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
+
 use anyhow::Result;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
 use crate::core::folder::MinecraftLocation;
 
@@ -417,12 +418,12 @@ impl Version {
 
         if main_class == ""
             || assets_index
-                == (AssetIndex {
-                    size: 0,
-                    url: "".to_string(),
-                    id: "".to_string(),
-                    total_size: 0,
-                })
+            == (AssetIndex {
+            size: 0,
+            url: "".to_string(),
+            id: "".to_string(),
+            total_size: 0,
+        })
             || downloads.len() == 0
         {
             panic!("Bad Version JSON");

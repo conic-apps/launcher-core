@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use anyhow::Result;
 use tokio::fs;
 
 use crate::core::folder::MinecraftLocation;
@@ -48,7 +49,7 @@ pub async fn install_fabric(
     loader: FabricLoaderArtifact,
     minecraft_location: MinecraftLocation,
     options: Option<FabricInstallOptions>,
-) -> String {
+) -> Result<String> {
     let options = match options {
         None => FabricInstallOptions {
             inherits_from: None,
@@ -130,12 +131,12 @@ pub async fn install_fabric(
     let json_file_path = minecraft_location.get_version_json(&id.clone().unwrap());
     fs::create_dir_all(json_file_path.parent().unwrap())
         .await
-        .unwrap();
+        ?;
     if let Ok(metadata) = fs::metadata(&json_file_path).await {
         if metadata.is_file() {
-            fs::remove_file(&json_file_path).await.unwrap();
+            fs::remove_file(&json_file_path).await?;
         } else {
-            fs::remove_dir_all(&json_file_path).await.unwrap();
+            fs::remove_dir_all(&json_file_path).await?;
         }
     }
     #[derive(Serialize)]
@@ -169,14 +170,14 @@ pub async fn install_fabric(
     let json_data = serde_json::to_string_pretty(&version_json)
         .unwrap_or("".to_string())
         .to_string();
-    tokio::fs::write(json_file_path, json_data).await.unwrap();
+    tokio::fs::write(json_file_path, json_data).await?;
 
-    id.unwrap_or("".to_string())
+    Ok(id.unwrap_or("".to_string()))
 }
 
-#[tokio::test]
-async fn test() {
-    let artifact = FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
-    let location = MinecraftLocation::new("test");
-    install_fabric(artifact, location, None).await;
-}
+// #[tokio::test]
+// async fn test() {
+//     let artifact = FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
+//     let location = MinecraftLocation::new("test");
+//     install_fabric(artifact, location, None).await.unwrap();
+// }

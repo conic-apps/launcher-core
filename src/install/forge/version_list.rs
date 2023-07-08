@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -42,23 +43,19 @@ pub struct ForgeInstallerFile {
 pub struct ForgeVersionList(Vec<ForgeVersionListItem>);
 
 impl ForgeVersionList {
-    pub async fn new() -> Self {
-        reqwest::get("https://bmclapi2.bangbang93.com/forge/list/0")
-            .await
-            .unwrap()
+    pub async fn new() -> Result<Self> {
+        Ok(reqwest::get("https://bmclapi2.bangbang93.com/forge/list/0")
+            .await?
             .json::<Self>()
-            .await
-            .unwrap()
+            .await?)
     }
 
-    pub async fn from_mcversion(mcversion: &str) -> Self {
-        reqwest::get(format!(
+    pub async fn from_mcversion(mcversion: &str) -> Result<Self> {
+        Ok(reqwest::get(format!(
             "https://bmclapi2.bangbang93.com/forge/minecraft/{mcversion}"
         ))
-        .await
-        .unwrap()
-        .json::<Self>()
-        .await
-        .unwrap()
+            .await?
+            .json::<Self>()
+            .await?)
     }
 }

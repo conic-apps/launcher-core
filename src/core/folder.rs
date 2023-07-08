@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::ffi::OsStr;
 use std::{
     fmt::Display,
     format,
     path::{Path, PathBuf},
 };
+use std::ffi::OsStr;
 
 #[derive(Debug, Clone)]
 /// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.

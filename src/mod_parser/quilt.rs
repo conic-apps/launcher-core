@@ -16,16 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::mod_parser::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod};
-use crate::utils::unzip::filter_entries;
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
+
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use zip::ZipArchive;
+
+use crate::mod_parser::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod};
+use crate::utils::unzip::filter_entries;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct JarsEntry {

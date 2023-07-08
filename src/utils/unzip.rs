@@ -24,7 +24,7 @@ use std::{
 };
 
 use tokio::fs::create_dir_all;
-use zip::{read::ZipFile, CompressionMethod, DateTime, ZipArchive};
+use zip::{CompressionMethod, DateTime, read::ZipFile, ZipArchive};
 
 #[derive(Debug, Clone)]
 pub struct Entry {

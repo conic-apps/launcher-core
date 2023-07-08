@@ -16,13 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use anyhow::Result;
 use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reqwest::{Client, Response};
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
@@ -39,27 +41,29 @@ pub struct Download<P: AsRef<Path> + AsRef<OsStr>> {
 
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 
-pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(download_task: Download<P>) -> Response {
+pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(
+    download_task: Download<P>,
+) -> Result<Response> {
     // todo: 尝试从服务器获取文件大，超过5mb分片下载
     // todo: 错误处理
     let file_path = PathBuf::from(&download_task.file);
     let direction = file_path.parent().unwrap();
     if !direction.exists() {
-        fs::create_dir_all(&direction).await.unwrap()
+        fs::create_dir_all(&direction).await?
     }
-    let mut response = HTTP_CLIENT.get(&download_task.url).send().await.unwrap();
-    let mut file = fs::File::create(&download_task.file).await.unwrap();
-    while let Some(chunk) = response.chunk().await.unwrap() {
-        file.write_all(&chunk).await.unwrap();
+    let mut response = HTTP_CLIENT.get(&download_task.url).send().await?;
+    let mut file = fs::File::create(&download_task.file).await?;
+    while let Some(chunk) = response.chunk().await? {
+        file.write_all(&chunk).await?;
     }
-    response
+    Ok(response)
 }
 
 pub async fn download_files(
     download_tasks: Vec<Download<String>>,
     listeners: TaskEventListeners,
     verify_exists: bool,
-) {
+) -> Result<()> {
     listeners.start();
     listeners.progress(0, 0, 1);
     let download_tasks: Vec<_> = download_tasks
@@ -75,7 +79,12 @@ pub async fn download_files(
                     }
                 }
             }
-            let mut file = std::fs::File::open(&download_task.file).unwrap();
+            let mut file = match std::fs::File::open(&download_task.file) {
+                Ok(file) => file,
+                Err(_) => {
+                    return true;
+                }
+            };
             let file_sha1 = calculate_sha1_from_read(&mut file);
             let sha1 = match download_task.sha1.clone() {
                 None => return true,
@@ -88,8 +97,10 @@ pub async fn download_files(
             }
         })
         .collect();
+
     let total = download_tasks.len();
     let counter: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
+
     let stream = futures::stream::iter(download_tasks)
         .map(|download_task| {
             let counter = Arc::clone(&counter);
@@ -107,21 +118,12 @@ pub async fn download_files(
             //println!("{completed}/{total}");
         })
         .await;
+
     if counter.load(Ordering::SeqCst) == total {
         listeners.succeed();
     } else {
         listeners.failed();
     }
-}
 
-// #[tokio::test]
-// async fn test_download_files() {
-//     let mut download_tasks = vec![];
-//     for i in 0..200 {
-//         download_tasks.push(Download {
-//             url: "https://speed.hetzner.de/100MB.bin".to_string(),
-//             file: format!("/home/CD-DVD/test/test-{}.bin", i + 1),
-//         });
-//     }
-//     download_files(download_tasks, false).await;
-// }
+    Ok(())
+}

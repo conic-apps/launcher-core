@@ -25,6 +25,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Result;
 use reqwest::Response;
 use zip::ZipArchive;
 
@@ -52,7 +53,7 @@ async fn download_forge_installer(
     required_version: RequiredVersion,
     minecraft: &MinecraftLocation,
     _options: &Option<InstallForgeOptions>,
-) -> (String, Response) {
+) -> Result<(String, Response)> {
     let path = if let Some(installer) = &required_version.installer {
         String::from(&installer.path)
     } else {
@@ -81,15 +82,15 @@ async fn download_forge_installer(
     let file_path = minecraft
         .get_library_by_path(&library.path)
         .to_str()
-        .unwrap()
+        .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?
         .to_string();
     let response = download(Download {
         url: library.url,
         file: file_path.clone(),
         sha1: None,
     })
-    .await;
-    (file_path, response)
+        .await;
+    Ok((file_path, response?))
 }
 
 async fn walk_forge_installer_entries<R: Read + io::Seek>(
@@ -143,10 +144,10 @@ pub async fn install_forge(
     version: RequiredVersion,
     minecraft: MinecraftLocation,
     options: Option<InstallForgeOptions>,
-) {
+) -> Result<()> {
     let mcversion: Vec<_> = version.mcversion.split(".").collect();
     let minor = *mcversion.get(1).unwrap();
-    let minor_version = minor.parse::<i32>().unwrap();
+    let minor_version = minor.parse::<i32>()?;
 
     let forge_version = if minor_version >= 7 && minor_version <= 8 {
         format!(
@@ -158,17 +159,17 @@ pub async fn install_forge(
     };
 
     let (installer_jar_path, _installer_jar) =
-        download_forge_installer(&forge_version, version, &minecraft, &options).await;
+        download_forge_installer(&forge_version, version, &minecraft, &options).await?;
     println!("{}", installer_jar_path);
     thread::sleep(Duration::from_secs(1));
-    let installer_jar = ZipArchive::new(File::open(&installer_jar_path).unwrap()).unwrap();
+    let installer_jar = ZipArchive::new(File::open(&installer_jar_path)?)?;
 
     let entries = walk_forge_installer_entries(installer_jar, &forge_version).await;
-    let mut installer_jar = ZipArchive::new(File::open(&installer_jar_path).unwrap()).unwrap();
+    let mut installer_jar = ZipArchive::new(File::open(&installer_jar_path)?)?;
 
     let install_profile_json = match &entries.install_profile_json {
         None => panic!("Bad forge installer jar!"),
-        Some(data) => String::from_utf8(data.content.clone()).unwrap(),
+        Some(data) => String::from_utf8(data.content.clone())?,
     };
     println!("{}", install_profile_json);
     let forge_type = if let Some(_) = &entries.install_profile_json {
@@ -184,27 +185,32 @@ pub async fn install_forge(
     };
     match forge_type {
         ForgeType::New => {
-            let profile: InstallProfile = serde_json::from_str(&install_profile_json).unwrap();
+            let profile: InstallProfile = serde_json::from_str(&install_profile_json)?;
             let _version_id = unpack_forge_installer(
                 &mut installer_jar,
                 entries,
                 &forge_version,
                 minecraft,
-                PathBuf::from_str((&installer_jar_path).as_ref()).unwrap(),
+                PathBuf::from_str((&installer_jar_path).as_ref())?,
                 profile,
                 options,
             )
-            .await;
+                .await;
         }
         ForgeType::Legacy => {
-            let profile: InstallProfileLegacy =
-                serde_json::from_str(&install_profile_json).unwrap();
+            let profile: InstallProfileLegacy = serde_json::from_str(&install_profile_json)?;
             let entries = ForgeLegacyInstallerEntriesPatten {
-                install_profile_json: entries.install_profile_json.unwrap(),
-                legacy_universal_jar: entries.legacy_universal_jar.unwrap(),
+                install_profile_json: entries
+                    .install_profile_json
+                    .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
+                legacy_universal_jar: entries
+                    .legacy_universal_jar
+                    .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
             };
-            install_legacy_forge_from_zip(entries, profile, minecraft, options).await;
+            install_legacy_forge_from_zip(entries, profile, minecraft, options).await?;
         }
         ForgeType::Bad => panic!("Bad forge installer jar!"),
     }
+
+    Ok(())
 }

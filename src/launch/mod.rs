@@ -63,18 +63,21 @@
 //! }
 //! ```
 
-use crate::core::folder::MinecraftLocation;
-use crate::core::version::{ResolvedVersion, Version};
-use crate::core::{JavaExec, OsType, PlatformInfo, DELIMITER};
-use once_cell::sync::Lazy;
-use regex::Regex;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::env::vars;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::string::ToString;
+
+use anyhow::Result;
+use once_cell::sync::Lazy;
+use regex::Regex;
+use serde_json::Value;
 use tokio::process::Command;
+
+use crate::core::{DELIMITER, JavaExec, OsType, PlatformInfo};
+use crate::core::folder::MinecraftLocation;
+use crate::core::version::{ResolvedVersion, Version};
 
 pub static DEFAULT_EXTRA_JVM_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
     vec![
@@ -259,12 +262,12 @@ pub struct LaunchOptions {
 
 impl LaunchOptions {
     /// spawn an instance with default launch options
-    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Self {
+    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Result<Self> {
         let version_json_path = minecraft.get_version_json(version_id);
-        let raw_version_json = tokio::fs::read_to_string(version_json_path).await.unwrap();
-        let version_json: Version = serde_json::from_str((&raw_version_json).as_ref()).unwrap();
+        let raw_version_json = tokio::fs::read_to_string(version_json_path).await?;
+        let version_json: Version = serde_json::from_str((&raw_version_json).as_ref())?;
 
-        Self {
+        Ok(Self {
             game_profile: GameProfile {
                 name: "Steve".to_string(),
                 uuid: uuid::Uuid::new_v4().to_string().replace('-', ""),
@@ -302,7 +305,7 @@ impl LaunchOptions {
             version_id: version_id.to_string(),
             gc: GC::G1,
             minecraft_location: minecraft.clone(),
-        }
+        })
     }
 }
 
@@ -312,13 +315,13 @@ impl LaunchOptions {
 /// convert to shell commands
 pub struct LaunchArguments(Vec<String>);
 
-const DEFAULT_MINECRAFT_ICON: &[u8] = include_bytes!("./assets/minecraft.icns");
+const DEFAULT_GAME_ICON: &[u8] = include_bytes!("./assets/minecraft.icns");
 
 impl LaunchArguments {
     pub async fn from_launch_options(
         launch_options: LaunchOptions,
         version: ResolvedVersion,
-    ) -> Self {
+    ) -> Result<Self> {
         // todo: if launch_options.game_path.is_absolute() { return Err(); }
         let platform = PlatformInfo::new().await;
         let minecraft = MinecraftLocation::new(&launch_options.resource_path);
@@ -327,9 +330,7 @@ impl LaunchArguments {
             Some(icon_path) => icon_path,
             None => {
                 let icon_path = minecraft.assets.join("minecraft.icns");
-                tokio::fs::write(&icon_path, DEFAULT_MINECRAFT_ICON)
-                    .await
-                    .unwrap();
+                tokio::fs::write(&icon_path, DEFAULT_GAME_ICON).await?;
                 icon_path
             }
         };
@@ -427,7 +428,7 @@ impl LaunchArguments {
             "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false".to_string(),
             "-Dlog4j2.formatMsgNoLookups=true".to_string(),
         ]); // todo: test the jvm args
-            // todo: support proxy
+        // todo: support proxy
 
         let mut jvm_options: HashMap<&str, String> = HashMap::new();
         jvm_options.insert(
@@ -446,7 +447,7 @@ impl LaunchArguments {
             if let Some(client) = logging.get("client") {
                 let argument = &client.argument;
                 let file_path = minecraft.get_log_config(&client.file.id);
-                if tokio::fs::try_exists(&file_path).await.unwrap() {
+                if tokio::fs::try_exists(&file_path).await? {
                     jvm_arguments.push(
                         argument.replace("${path}", &file_path.to_string_lossy().to_string()),
                     );
@@ -528,8 +529,8 @@ impl LaunchArguments {
         }
         let no_width_arguments = None
             == command_arguments
-                .iter()
-                .find(|v| v == &&"--width".to_string());
+            .iter()
+            .find(|v| v == &&"--width".to_string());
         if no_width_arguments && !launch_options.fullscreen {
             command_arguments.extend(vec![
                 "--width".to_string(),
@@ -539,7 +540,7 @@ impl LaunchArguments {
             ]);
         }
 
-        LaunchArguments(command_arguments)
+        Ok(LaunchArguments(command_arguments))
     }
 
     /// spawn a command instance, you can use this to launch the game
@@ -658,14 +659,14 @@ pub struct Launcher {
 
 impl Launcher {
     /// spawn an instance with default launch options
-    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Self {
-        let launch_options = LaunchOptions::new(version_id, minecraft.clone()).await;
-        Self {
+    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Result<Self> {
+        let launch_options = LaunchOptions::new(version_id, minecraft.clone()).await?;
+        Ok(Self {
             launch_options,
             minecraft,
             check_game_integrity: true,
             exit_status: None,
-        }
+        })
     }
 
     /// spawn an instance with custom launch options
@@ -681,22 +682,23 @@ impl Launcher {
     /// launch game.
     ///
     // /// Note: this function will block the current thread when game running
-    pub async fn launch(&mut self) {
+    pub async fn launch(&mut self) -> Result<()> {
         let platform = PlatformInfo::new().await;
         let options = self.launch_options.clone();
         let version = self
             .launch_options
             .version
             .parse(&self.minecraft, &platform)
-            .await;
+            .await?;
         let mut command = LaunchArguments::from_launch_options(options.clone(), version.clone())
-            .await
+            .await?
             .to_async_command(
                 JavaExec::new(&"/usr/lib64/jvm/java-17-openjdk-17").await,
                 options,
                 &platform,
             );
-        let mut child = command.spawn().unwrap();
-        self.exit_status = Some(child.wait().await.unwrap());
+        let mut child = command.spawn()?;
+        self.exit_status = Some(child.wait().await?);
+        Ok(())
     }
 }

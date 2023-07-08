@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use super::{QuiltArtifactVersion, DEFAULT_META_URL};
+use super::{DEFAULT_META_URL, QuiltArtifactVersion};
 
 pub async fn get_quilt_version_list(remote: Option<String>) -> Vec<QuiltArtifactVersion> {
     let remote = match remote {

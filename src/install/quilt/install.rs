@@ -50,8 +50,8 @@ pub async fn install_quilt_version(
         json_path,
         serde_json::to_string_pretty(&quilt_version).unwrap(),
     )
-    .await
-    .unwrap();
+        .await
+        .unwrap();
 }
 
 #[tokio::test]

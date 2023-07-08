@@ -46,11 +46,11 @@ impl YarnArtifactList {
             "https://meta.fabricmc.net/v2/versions/yarn/{}",
             mcversion
         ))
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap()
     }
 }
 
@@ -70,11 +70,11 @@ impl LoaderArtifactList {
             "https://meta.fabricmc.net/v2/versions/loader/{}",
             mcversion
         ))
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap()
     }
 }
 
@@ -85,10 +85,10 @@ impl FabricLoaderArtifact {
             "https://meta.fabricmc.net/v2/versions/loader/{}/{}",
             mcversion, loader
         ))
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap()
     }
 }

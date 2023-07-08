@@ -16,20 +16,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use anyhow::Result;
 use reqwest::Url;
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
-use crate::core::version::ResolvedLibrary;
 use crate::{
     core::{
         folder::{get_path, MinecraftLocation},
+        PlatformInfo,
         task::TaskEventListeners,
         version::{self, AssetIndex, AssetIndexObject, ResolvedVersion, VersionManifest},
-        PlatformInfo,
     },
-    utils::download::{download_files, Download},
+    utils::download::{Download, download_files},
 };
+use crate::core::version::ResolvedLibrary;
 
 pub mod fabric;
 pub mod forge;
@@ -59,17 +60,12 @@ pub(crate) fn generate_libraries_download_list(
 pub(crate) async fn generate_assets_download_list(
     asset_index: AssetIndex,
     minecraft_location: &MinecraftLocation,
-) -> Vec<Download<String>> {
-    let asset_index_url = Url::parse((&asset_index.url).as_ref()).unwrap();
-    let asset_index_raw = reqwest::get(asset_index_url)
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
-    let asset_index_json: Value = serde_json::from_str((&asset_index_raw).as_ref()).unwrap();
+) -> Result<Vec<Download<String>>> {
+    let asset_index_url = Url::parse((&asset_index.url).as_ref())?;
+    let asset_index_raw = reqwest::get(asset_index_url).await?.text().await?;
+    let asset_index_json: Value = serde_json::from_str((&asset_index_raw).as_ref())?;
     let asset_index_object: AssetIndexObject =
-        serde_json::from_value(asset_index_json["objects"].clone()).unwrap();
+        serde_json::from_value(asset_index_json["objects"].clone())?;
     let mut assets: Vec<_> = asset_index_object
         .into_iter()
         .map(|obj| Download {
@@ -99,41 +95,44 @@ pub(crate) async fn generate_assets_download_list(
         ),
         sha1: None,
     });
-    assets
+    Ok(assets)
 }
 
 /// check game integrity and try to repair files
-/// 
-/// This is usually done in situations where the integrity of the game is uncertain, 
+///
+/// This is usually done in situations where the integrity of the game is uncertain,
 /// such as launching for the first time after installation
 pub async fn install_dependencies(
     version: ResolvedVersion,
     minecraft_location: MinecraftLocation,
     listeners: TaskEventListeners,
-) {
+) -> Result<()> {
     let mut download_list = Vec::new();
+
     download_list.extend(generate_libraries_download_list(
         version.libraries,
         &minecraft_location,
     ));
     download_list.extend(
-        generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await,
+        generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await?,
     );
-    download_files(download_list, listeners, false).await;
+    download_files(download_list, listeners, false).await?;
+
+    Ok(())
 }
 
 /// Quick game install
-/// 
+///
 /// Note: This operation does not ensure that all files are complete,
 /// please execute the [`install_dependencies`] function before the first startup
 pub async fn install(
     version_id: &str,
     minecraft_location: MinecraftLocation,
     listeners: TaskEventListeners,
-) {
+) -> Result<()> {
     let platform = PlatformInfo::new().await;
 
-    let versions = VersionManifest::new().await.versions;
+    let versions = VersionManifest::new().await?.versions;
     let version_metadata: Vec<_> = versions
         .into_iter()
         .filter(|v| v.id == version_id)
@@ -144,23 +143,18 @@ pub async fn install(
     let version_metadata = version_metadata.get(0).unwrap();
 
     let version_json_raw = reqwest::get(version_metadata.url.clone())
-        .await
-        .unwrap()
+        .await?
         .text()
-        .await
-        .unwrap();
-    let version = version::Version::from_str(&version_json_raw)
-        .unwrap()
+        .await?;
+    let version = version::Version::from_str(&version_json_raw)?
         .parse(&minecraft_location, &platform)
-        .await;
+        .await?;
     let id = &version.id;
 
     let version_json_path = minecraft_location.versions.join(format!("{id}/{id}.json"));
-    tokio::fs::create_dir_all(version_json_path.parent().unwrap())
-        .await
-        .unwrap();
-    let mut file = tokio::fs::File::create(&version_json_path).await.unwrap();
-    file.write_all(version_json_raw.as_bytes()).await.unwrap();
+    tokio::fs::create_dir_all(version_json_path.parent().unwrap()).await?;
+    let mut file = tokio::fs::File::create(&version_json_path).await?;
+    file.write_all(version_json_raw.as_bytes()).await?;
 
     let mut download_list = vec![];
     download_list.push(Download {
@@ -174,10 +168,17 @@ pub async fn install(
         &minecraft_location,
     ));
     download_list.extend(
-        generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await,
+        generate_assets_download_list(
+            version
+                .asset_index
+                .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
+            &minecraft_location,
+        )
+            .await?,
     );
 
-    download_files(download_list, listeners, false).await
+    download_files(download_list, listeners, false).await?;
+    Ok(())
 }
 
 // #[tokio::test]
