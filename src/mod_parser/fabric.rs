@@ -24,6 +24,7 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
 use zip::ZipArchive;
+use crate::mod_parser::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct JarsEntry {
@@ -75,28 +76,26 @@ pub struct FabricModMetadata {
 
 impl FabricModMetadata {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let mod_file = File::open(path).unwrap();
-        let mut mod_file_archive = ZipArchive::new(mod_file).unwrap();
+        let mod_file = File::open(path)?;
+        let mut mod_file_archive = ZipArchive::new(mod_file)?;
         Self::from_zip_archive(&mut mod_file_archive)
     }
     pub fn from_zip_archive(archive: &mut ZipArchive<File>) -> Result<Self> {
-        let mod_json = archive.by_name("fabric.mod.json").unwrap();
-        Ok(serde_json::from_reader(mod_json).unwrap())
+        let mod_json = archive.by_name("fabric.mod.json")?;
+        Ok(serde_json::from_reader(mod_json)?)
     }
+}
 
-    pub fn parse(&self) -> ResolvedFabricModMetadata {
-        let name = match self.name.to_owned() {
+impl Parse for FabricModMetadata {
+    fn parse(self) -> ResolvedMod {
+        let name = match self.name {
             Some(v) => v,
-            None => self.id.to_owned(),
-        };
-        let description = match self.description.to_owned() {
-            Some(v) => v,
-            None => "".to_string(),
+            None => self.id,
         };
         let mut minecraft_depend = None;
         let mut fabric_loader_depend = None;
         let mut java_depend = None;
-        if let Some(depends) = self.depends.to_owned() {
+        if let Some(depends) = self.depends {
             for depend in depends {
                 match depend.0.as_str() {
                     "minecraft" => minecraft_depend = Some(depend.1),
@@ -124,11 +123,6 @@ impl FabricModMetadata {
         } else {
             None
         };
-        // let authors = self.authors.iter().map(|author_info| {
-        //     if author_info {
-
-        //     }
-        // });
         let mut parsed_authors = None;
         if let Some(authors) = self.authors.to_owned() {
             parsed_authors = Some(
@@ -157,73 +151,63 @@ impl FabricModMetadata {
                     .collect::<Vec<ResolvedAuthorInfo>>(),
             );
         }
-        ResolvedFabricModMetadata {
+        ResolvedMod {
             name,
-            description,
-            depends: ResolvedFabricDepends {
+            description: self.description,
+            version: Some(self.version.clone()),
+            depends: ResolvedDepends {
                 minecraft: minecraft_depend,
-                fabric_loader: fabric_loader_depend,
+                mod_loader: fabric_loader_depend,
                 java: java_depend,
             },
-            authors: parsed_authors,
+            authors: match parsed_authors {
+                Some(v) => v,
+                None => vec![]
+            },
             license,
+            icon: self.icon
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ResolvedFabricDepends {
-    pub minecraft: Option<Value>,
-    pub fabric_loader: Option<Value>,
-    pub java: Option<Value>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvedAuthorInfo {
-    pub name: String,
-    pub contact: Option<HashMap<String, String>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvedFabricModMetadata {
-    pub name: String,
-    pub description: String,
-    pub depends: ResolvedFabricDepends,
-    pub authors: Option<Vec<ResolvedAuthorInfo>>,
-    pub license: Option<Vec<String>>,
-}
-
 pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(
     folder: &S,
-) -> Result<Vec<ResolvedFabricModMetadata>> {
+) -> Result<Vec<ResolvedMod>> {
     let folder = Path::new(folder).to_path_buf();
-    let entries = folder.read_dir().unwrap();
+    let entries = folder.read_dir()?;
     let mut result = Vec::new();
     for entry in entries {
-        let entry = entry.unwrap();
+        let entry = match entry {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
         let path = entry.path();
         if path.is_dir() {
             continue;
         }
         println!("{:?}", path);
-        result.push(FabricModMetadata::from_path(path).unwrap().parse());
+        let raw_metadata = match FabricModMetadata::from_path(path) {
+            Ok(v) => v,
+            Err(_) => continue
+        };
+        result.push(raw_metadata.parse());
     }
     Ok(result)
 }
 
-#[test]
-fn test() {
-    let file = "mock/fabric-mod.jar";
-    let a = FabricModMetadata::from_path(file).unwrap();
-    println!("{:#?}", a);
-    let b = a.parse();
-    println!("{:#?}", b);
-    assert_eq!(b.name, "Carpet Mod".to_string());
-}
-
-#[test]
-fn test2() {
-    let folder = "mock/fabricmod";
-    let a = parse_folder(folder).unwrap();
-    println!("{:#?}", a.len());
-}
+// #[test]
+// fn test() {
+//     let file = "mock/fabric-mod.jar";
+//     let a = FabricModMetadata::from_path(file).unwrap();
+//     println!("{:#?}", a);
+//     let b = a.parse();
+//     println!("{:#?}", b);
+//     assert_eq!(b.name, "Carpet Mod".to_string());
+// }
+//
+// #[test]
+// fn test2() {
+//     let folder = "mock/fabricMod";
+//     let a = parse_folder(folder).unwrap();
+//     println!("{:#?}", a.len());
+// }

@@ -16,6 +16,37 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::collections::HashMap;
+use serde_json::Value;
+
 pub mod fabric;
 pub mod forge;
+pub mod quilt;
 
+pub trait Parse {
+    fn parse(self) -> ResolvedMod;
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedMod {
+    pub name: String,
+    pub description: Option<String>,
+    pub version: Option<String>,
+    pub depends: ResolvedDepends,
+    pub authors: Vec<ResolvedAuthorInfo>,
+    pub license: Option<Vec<String>>,
+    pub icon: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedDepends {
+    pub minecraft: Option<Value>,
+    pub java: Option<Value>,
+    pub mod_loader: Option<Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedAuthorInfo {
+    pub name: String,
+    pub contact: Option<HashMap<String, String>>,
+}
