@@ -20,10 +20,10 @@ use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reqwest::{Client, Response};
 use std::ffi::OsStr;
-use tokio::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
 use crate::core::task::TaskEventListeners;
@@ -55,7 +55,11 @@ pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(download_task: Download<P>)
     response
 }
 
-pub async fn download_files(download_tasks: Vec<Download<String>>, listeners: TaskEventListeners) {
+pub async fn download_files(
+    download_tasks: Vec<Download<String>>,
+    listeners: TaskEventListeners,
+    verify_exists: bool,
+) {
     listeners.start();
     listeners.progress(0, 0, 1);
     let download_tasks: Vec<_> = download_tasks
@@ -65,7 +69,11 @@ pub async fn download_files(download_tasks: Vec<Download<String>>, listeners: Ta
                 Err(_) => {
                     return true;
                 }
-                _ => (),
+                _ => {
+                    if !verify_exists {
+                        return false;
+                    }
+                }
             }
             let mut file = std::fs::File::open(&download_task.file).unwrap();
             let file_sha1 = calculate_sha1_from_read(&mut file);

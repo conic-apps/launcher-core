@@ -30,7 +30,6 @@ use crate::{
     },
     utils::download::{download_files, Download},
 };
-// todo: crate::core::task里面放 Task 结构体，把Future放进去
 
 pub mod fabric;
 pub mod forge;
@@ -103,6 +102,10 @@ pub(crate) async fn generate_assets_download_list(
     assets
 }
 
+/// check game integrity and try to repair files
+/// 
+/// This is usually done in situations where the integrity of the game is uncertain, 
+/// such as launching for the first time after installation
 pub async fn install_dependencies(
     version: ResolvedVersion,
     minecraft_location: MinecraftLocation,
@@ -116,9 +119,13 @@ pub async fn install_dependencies(
     download_list.extend(
         generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await,
     );
-    download_files(download_list, listeners).await;
+    download_files(download_list, listeners, false).await;
 }
 
+/// Quick game install
+/// 
+/// Note: This operation does not ensure that all files are complete,
+/// please execute the [`install_dependencies`] function before the first startup
 pub async fn install(
     version_id: &str,
     minecraft_location: MinecraftLocation,
@@ -170,19 +177,19 @@ pub async fn install(
         generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await,
     );
 
-    download_files(download_list, listeners).await
+    download_files(download_list, listeners, false).await
 }
 
-#[tokio::test]
-async fn test() {
-    let a = Box::new(|completed, total, step| {
-        println!("progress: {completed}/{total}  step: {step}");
-    });
-    let cb = TaskEventListeners::new().on_progress(a);
-    install("1.20.1", MinecraftLocation::new("test"), cb).await;
-    // let minecraft_location = MinecraftLocation::new("test");
-    // let raw = read_to_string(minecraft_location.versions.clone().join("1.20").join("1.20.json")).unwrap();
-    // let version = crate::core::version::Version::from_str(&raw).unwrap().parse(minecraft_location.clone());
-    // install_dependencies(version, a, minecraft_location.clone()).await;
-    // c.task.await;
-}
+// #[tokio::test]
+// async fn test() {
+//     let a = Box::new(|completed, total, step| {
+//         println!("progress: {completed}/{total}  step: {step}");
+//     });
+//     let cb = TaskEventListeners::new().on_progress(a);
+//     install("1.20.1", MinecraftLocation::new("test"), cb).await;
+//     // let minecraft_location = MinecraftLocation::new("test");
+//     // let raw = read_to_string(minecraft_location.versions.clone().join("1.20").join("1.20.json")).unwrap();
+//     // let version = crate::core::version::Version::from_str(&raw).unwrap().parse(minecraft_location.clone());
+//     // install_dependencies(version, a, minecraft_location.clone()).await;
+//     // c.task.await;
+// }
