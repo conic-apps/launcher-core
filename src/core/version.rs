@@ -332,8 +332,8 @@ impl Version {
         Ok(version)
     }
 
-    pub fn from_str(raw: &String) -> Result<Version, serde_json::Error> {
-        serde_json::from_str(raw.as_ref())
+    pub fn from_str(raw: &str) -> Result<Version, serde_json::Error> {
+        serde_json::from_str(raw)
     }
 
     /// parse a Minecraft version json

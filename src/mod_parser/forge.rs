@@ -127,7 +127,6 @@ pub struct ForgeModTOMLData {
     pub loader_version: Option<String>,
     pub issue_tracker_url: Option<String>,
     pub mods: Option<Vec<ForgeModTOMLMod>>,
-
     pub mod_id: Option<String>,
     pub description: Option<String>,
     pub display_name: Option<String>,
@@ -382,11 +381,4 @@ pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(
         result.push(resolved);
     }
     Ok(result)
-}
-
-#[test]
-fn test() {
-    let path = "mock/forgeMod";
-    let a = parse_folder(path).unwrap();
-    println!("{:#?}", a);
 }

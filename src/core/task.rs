@@ -17,6 +17,22 @@
  */
 
 //! The install task manager
+//!
+//! # Example
+//!
+//! Create listeners, then use them to monitor task progress
+//!
+//! ```
+//! use mgl_core::core::folder::MinecraftLocation;
+//! use mgl_core::core::task::TaskEventListeners;
+//! use mgl_core::install::install;
+//!  async fn fn_name() {
+//!     let listeners = TaskEventListeners::new().on_progress(Box::new(|completed, total, step| {
+//!         println!("progress: {completed}/{total}; step: {step}")
+//!     }));
+//!     install("1.19.4", MinecraftLocation::new(".minecraft"), listeners).await.unwrap();
+//! }
+//! ```
 
 /// Execute the corresponding function when the installation event occurs
 ///

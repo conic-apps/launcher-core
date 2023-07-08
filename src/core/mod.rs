@@ -23,11 +23,44 @@
 //! Get platform information:
 //!
 //! ```rust
-//! async fn fn_name {
-//!     use magical_launcher_core::core::PlatformInfo;
+//! async fn fn_name() {
+//!     use mgl_core::core::PlatformInfo;
 //!     let platform_info = PlatformInfo::new().await;
 //! }
 //! ```
+//!
+//! Parse version.json:
+//!
+//! ```
+//! use mgl_core::core::folder::MinecraftLocation;
+//! use mgl_core::core::PlatformInfo;
+//! use mgl_core::core::version::Version;
+//! 
+//!  async fn fn_name() {
+//!     let version = Version::from_str("example version.json").unwrap();
+//!     let resolved = version.parse(&MinecraftLocation::new(".minecraft"), &PlatformInfo::new().await).await.unwrap();
+//! }
+//! ```
+//!
+//! Parse Minecraft folders:
+//!
+//! ```
+//! use std::path::Path;
+//! use mgl_core::core::folder::MinecraftLocation;
+//!
+//! let minecraft_location = MinecraftLocation::new(".minecraft");
+//! assert_eq!(minecraft_location.mods, Path::new(".minecraft/mods").to_path_buf());
+//! ```
+//!
+//! Create task listeners:
+//!
+//! ```
+//! use mgl_core::core::task::TaskEventListeners;
+//! let listeners = TaskEventListeners::new().on_progress(Box::new(|completed, total, step| {
+//!     println!("progress: {completed}/{total}; step: {step}")
+//! }));
+//! ```
+//!
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};

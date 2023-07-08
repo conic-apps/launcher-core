@@ -16,6 +16,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+//! Mods Parser. It support `forge`, `fabric`, `quilt`, `rift`
+//!
+//! Note: If you want to parse `rift` mods, you should use forge mod parser.
+//!
+//! # Example
+//!
+//! Parse simple mod:
+//!
+//! ```
+//! use mgl_core::mod_parser::fabric::FabricModMetadata;
+//! use mgl_core::mod_parser::Parse;
+//!
+//! let metadata = FabricModMetadata::from_path("mock/fabricMod/fabric-carpet-1.20.jar").unwrap();
+//! let mod_info = metadata.parse();
+//! println!("{:#?}", mod_info);
+//! ```
+//!
+//! Resolve all mods in the folder:
+//! ```
+//! use mgl_core::mod_parser::fabric::parse_folder;
+//!
+//! let result = parse_folder("mock/fabricMod").unwrap();
+//! println!("{:#?}", result);
+//! ```
+
 use std::collections::HashMap;
 
 use serde_json::Value;

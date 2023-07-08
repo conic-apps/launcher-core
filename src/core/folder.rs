@@ -16,6 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+//! The game folders parser
+//!
+//! # Example
+//!
+//! ```
+//! use std::path::Path;
+//! use mgl_core::core::folder::MinecraftLocation;
+//!
+//! let minecraft_location = MinecraftLocation::new(".minecraft");
+//!
+//! assert_eq!(Path::new(".minecraft/mods").to_path_buf(), minecraft_location.mods);
+//! assert_eq!(
+//!     Path::new(".minecraft/versions/1.19.4/1.19.4.json").to_path_buf(),
+//!     minecraft_location.get_version_json("1.19.4")
+//! );
+//! ```
+
 use std::{
     fmt::Display,
     format,
@@ -123,10 +140,4 @@ pub fn get_path(path: &PathBuf) -> String {
         None => panic!("New path is noe a valid UTF-8 sequence!"),
         Some(s) => String::from(s),
     }
-}
-
-#[test]
-fn test() {
-    let a = MinecraftLocation::new("/home/CD-DVD/test");
-    println!("{:#?}", a);
 }
