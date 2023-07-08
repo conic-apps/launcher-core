@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod errors;
 pub mod folder;
 pub mod task;
 pub mod version;

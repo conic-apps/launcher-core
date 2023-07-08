@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use anyhow::Result;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -48,11 +49,10 @@ pub struct VersionManifest {
 }
 
 impl VersionManifest {
-    pub async fn new() -> VersionManifest {
-        let response = reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest.json")
-            .await
-            .unwrap();
-        response.json::<VersionManifest>().await.unwrap()
+    pub async fn new() -> Result<VersionManifest> {
+        let response =
+            reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest.json").await?;
+        Ok(response.json::<VersionManifest>().await?)
     }
 }
 
@@ -340,23 +340,22 @@ impl Version {
         &self,
         minecraft: &MinecraftLocation,
         platform: &PlatformInfo,
-    ) -> ResolvedVersion {
+    ) -> Result<ResolvedVersion> {
         let mut inherits_from = self.inherits_from.clone();
         let versions_folder = &minecraft.versions;
         let mut versions = Vec::new();
         let mut inheritances = Vec::new();
         let mut path_chain = Vec::new();
         versions.push(self.clone());
-        while let Some(_) = inherits_from {
-            let inherits_from_unwrap = inherits_from.unwrap();
+        while let Some(inherits_from_unwrap) = inherits_from {
             inheritances.push(inherits_from_unwrap.clone());
 
             let path = versions_folder
                 .join(inherits_from_unwrap.clone())
                 .join(format!("{}.json", inherits_from_unwrap.clone()));
             path_chain.push(path.clone());
-            let version_json = read_to_string(path).unwrap();
-            let version_json: Version = serde_json::from_str((&version_json).as_ref()).unwrap();
+            let version_json = read_to_string(path)?;
+            let version_json: Version = serde_json::from_str((&version_json).as_ref())?;
 
             versions.push(version_json.clone());
             inherits_from = version_json.inherits_from;
@@ -428,7 +427,7 @@ impl Version {
         {
             panic!("Bad Version JSON");
         }
-        ResolvedVersion {
+        Ok(ResolvedVersion {
             id: self.id.clone(),
             arguments: Some(ResolvedArguments {
                 game: resolve_arguments(game_args, platform).await,
@@ -451,7 +450,7 @@ impl Version {
             minecraft_version: self.client_version.clone().unwrap_or(self.id.clone()),
             inheritances,
             path_chain,
-        }
+        })
     }
 }
 
