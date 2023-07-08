@@ -21,7 +21,6 @@ use once_cell::sync::Lazy;
 use reqwest::{Client, Response};
 use std::ffi::OsStr;
 use tokio::fs;
-use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -60,7 +59,7 @@ pub async fn download_files(download_tasks: Vec<Download<String>>, listeners: Ta
     listeners.start();
     listeners.progress(0, 0, 1);
     let download_tasks: Vec<_> = download_tasks
-        .par_iter()
+        .iter()
         .filter(|download_task| {
             match std::fs::metadata(&download_task.file) {
                 Err(_) => {

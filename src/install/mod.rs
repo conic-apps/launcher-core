@@ -175,11 +175,11 @@ pub async fn install(
 
 #[tokio::test]
 async fn test() {
-    // let a = Box::new(|completed, total, step| {
-    //     println!("progress: {completed}/{total}  step: {step}");
-    // });
-    // let cb = EventListeners::new().on_progress(a);
-    // install("1.20.1", MinecraftLocation::new("test"), cb).await;
+    let a = Box::new(|completed, total, step| {
+        println!("progress: {completed}/{total}  step: {step}");
+    });
+    let cb = TaskEventListeners::new().on_progress(a);
+    install("1.20.1", MinecraftLocation::new("test"), cb).await;
     // let minecraft_location = MinecraftLocation::new("test");
     // let raw = read_to_string(minecraft_location.versions.clone().join("1.20").join("1.20.json")).unwrap();
     // let version = crate::core::version::Version::from_str(&raw).unwrap().parse(minecraft_location.clone());
