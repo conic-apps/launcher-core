@@ -112,7 +112,7 @@ pub struct ForgeModTOMLMod {
 /// screen of the game through the Mods button. A single info file can describe several mods.
 ///
 /// The `mods.toml` file is formatted as TOML, the example mods.toml file in the MDK provides
-/// comments explaining the contents of the file. It should be stored as 
+/// comments explaining the contents of the file. It should be stored as
 /// src/main/resources/META-INF/mods.toml. A basic mods.toml, describing one mod, may look like this:
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -331,19 +331,13 @@ pub fn resolve_from_zip_archive(archive: &mut ZipArchive<File>) -> Result<Resolv
     let entries = filter_entries(archive, &target_entries);
     let result = if let Some(entry) = entries.get("mcmod.info") {
         let file_content = String::from_utf8(entry.content.clone())?;
-        ForgeModMcmodInfo::from_info_file(&file_content)
-            ?
-            .parse()
+        ForgeModMcmodInfo::from_info_file(&file_content)?.parse()
     } else if let Some(entry) = entries.get("neimod.info") {
         let file_content = String::from_utf8(entry.content.clone())?;
-        ForgeModMcmodInfo::from_info_file(&file_content)
-            ?
-            .parse()
+        ForgeModMcmodInfo::from_info_file(&file_content)?.parse()
     } else if let Some(entry) = entries.get("cccmod.info") {
         let file_content = String::from_utf8(entry.content.clone())?;
-        ForgeModMcmodInfo::from_info_file(&file_content)
-            ?
-            .parse()
+        ForgeModMcmodInfo::from_info_file(&file_content)?.parse()
     } else if let Some(entry) = entries.get("META-INF/mods.toml") {
         let file_content = String::from_utf8(entry.content.clone())?;
         ForgeModTOMLData::from_str(&file_content)?.parse()
@@ -358,9 +352,7 @@ pub fn resolve_from_zip_archive(archive: &mut ZipArchive<File>) -> Result<Resolv
     Ok(result)
 }
 
-pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(
-    folder: &S,
-) -> Result<Vec<ResolvedMod>> {
+pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(folder: &S) -> Result<Vec<ResolvedMod>> {
     let folder = Path::new(folder).to_path_buf();
     let entries = folder.read_dir()?;
     let mut result = Vec::new();
@@ -376,9 +368,15 @@ pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(
         println!("{:?}", path);
         let resolved = match resolve_from_path(path) {
             Ok(v) => v,
-            Err(_) => continue
+            Err(_) => continue,
         };
         result.push(resolved);
     }
     Ok(result)
+}
+
+#[test]
+fn test() {
+    let folder = "mock/forgeMod";
+    parse_folder(folder).unwrap();
 }

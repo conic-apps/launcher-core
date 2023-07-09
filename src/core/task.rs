@@ -68,10 +68,18 @@ impl TaskEventListeners {
     /// Create a new instance
     pub fn new() -> Self {
         Self {
-            on_start: Box::new(|| {}),
-            on_progress: Box::new(|_completed, _total, _step| {}),
-            on_succeed: Box::new(|| {}),
-            on_failed: Box::new(|| {}),
+            on_start: Box::new(|| {
+                println!("Task is startting")
+            }),
+            on_progress: Box::new(|completed, total, step| {
+                println!("progress: {completed}/{total}, step: {step}")
+            }),
+            on_succeed: Box::new(|| {
+                println!("Done!")
+            }),
+            on_failed: Box::new(|| {
+                println!("Error!")
+            }),
         }
     }
     /// Register the start event listener, when the task start, the event will be triggered

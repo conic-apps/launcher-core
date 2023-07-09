@@ -19,6 +19,7 @@
 use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -26,6 +27,65 @@ use serde_json::Value;
 use crate::core::folder::MinecraftLocation;
 
 use super::PlatformInfo;
+
+// const DEFAULT_GAME_ARGS: Vec<Value> = vec![
+//     Value::String("()")
+//     // Value::from("value")
+//     // "--username".to_string(),
+
+//     // "${auth_player_name}".to_string(),
+//     // "--version".to_string(),
+//     // "${version_name}".to_string(),
+//     // "--gameDir".to_string(),
+//     // "${game_directory}".to_string(
+//     // "--assetsDir".to_string(),
+//     // "${assets_root}".to_string(),
+//     // "--assetIndex".to_string(),
+// ];
+
+static DEFAULT_GAME_ARGS: Lazy<Vec<Value>> = Lazy::new(|| {
+    vec![
+        Value::from("--username".to_string()),
+        Value::from("${auth_player_name}".to_string()),
+        Value::from("--version".to_string()),
+        Value::from("${version_name}".to_string()),
+        Value::from("--gameDir".to_string()),
+        Value::from("${game_directory}".to_string()),
+        Value::from("--assetsDir".to_string()),
+        Value::from("${assets_root}".to_string()),
+        // Value::from("--assetIndex".to_string()),
+        // Value::from("${asset_index}".to_string()),
+        Value::from("--uuid".to_string()),
+        Value::from("${auth_uuid}".to_string()),
+        Value::from("--accessToken".to_string()),
+        Value::from("${auth_access_token}".to_string()),
+        // Value::from("--clientId".to_string()),
+        // Value::from("${clientid}".to_string()),
+        // Value::from("--xuid".to_string()),
+        // Value::from("${auth_xuid}".to_string()),
+        // Value::from("--userType".to_string()),
+        // Value::from("${user_type}".to_string()),
+        // Value::from("--versionType".to_string()),
+        // Value::from("${version_type}".to_string()),
+        Value::from("--width".to_string()),
+        Value::from("${resolution_width}".to_string()),
+        Value::from("--height".to_string()),
+        Value::from("${resolution_height}".to_string()),
+    ]
+});
+
+static DEFAULT_JVM_ARGS: Lazy<Vec<Value>> = Lazy::new(|| {
+    vec![
+        Value::from("-Djava.library.path=${natives_directory}".to_string()),
+        Value::from("-Djna.tmpdir=${natives_directory}".to_string()),
+        Value::from("-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}".to_string()),
+        Value::from("-Dio.netty.native.workdir=${natives_directory}".to_string()),
+        Value::from("-Dminecraft.launcher.brand=${launcher_name}".to_string()),
+        Value::from("-Dminecraft.launcher.version=${launcher_version}".to_string()),
+        Value::from("-cp".to_string()),
+        Value::from("${classpath}".to_string()),
+    ]
+});
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct LatestVersion {
@@ -364,8 +424,8 @@ impl Version {
 
         let mut assets = "".to_string();
         let mut minimum_launcher_version = 0;
-        let mut game_args = Vec::new();
-        let mut jvm_args = Vec::new();
+        let mut game_args = DEFAULT_GAME_ARGS.clone();
+        let mut jvm_args = DEFAULT_JVM_ARGS.clone();
         let mut release_time = "".to_string();
         let mut time = "".to_string();
         let mut version_type = "".to_string();
@@ -418,12 +478,12 @@ impl Version {
 
         if main_class == ""
             || assets_index
-            == (AssetIndex {
-            size: 0,
-            url: "".to_string(),
-            id: "".to_string(),
-            total_size: 0,
-        })
+                == (AssetIndex {
+                    size: 0,
+                    url: "".to_string(),
+                    id: "".to_string(),
+                    total_size: 0,
+                })
             || downloads.len() == 0
         {
             panic!("Bad Version JSON");
@@ -463,7 +523,7 @@ pub struct ResolvedArguments {
 
 #[derive(Debug, Clone)]
 pub struct ResolvedLibrary {
-    pub artifact: Artifact,
+    pub download_info: Artifact,
     pub is_native_library: bool,
 }
 
@@ -512,7 +572,8 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
         }
         if library["downloads"]["artifact"].is_object() {
             result.push(ResolvedLibrary {
-                artifact: serde_json::from_value(library["downloads"]["artifact"].clone()).unwrap(),
+                download_info: serde_json::from_value(library["downloads"]["artifact"].clone())
+                    .unwrap(),
                 is_native_library: library["downloads"]["classifiers"].is_object(),
             });
             continue;
@@ -521,10 +582,44 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
         if name == None {
             continue;
         }
+        // resolve native lib
+        let classifiers = library["downloads"]["classifiers"].as_object();
+        let natives = library["natives"].as_object();
+        if classifiers.is_some() && natives.is_some() {
+            let classifiers = classifiers.unwrap();
+            let natives = natives.unwrap();
+            let classifier_key = natives[&platform.name].as_str();
+            if classifier_key.is_none() {
+                continue;
+            }
+            let classifier = classifiers[classifier_key.unwrap()].as_object();
+            if classifier.is_none() {
+                continue;
+            }
+            let classifier = classifier.unwrap();
+            result.push(ResolvedLibrary {
+                download_info: Artifact {
+                    sha1: classifier["sha1"].as_str().unwrap_or("").to_string(),
+                    size: classifier["size"].as_u64().unwrap_or(0),
+                    url: match classifier["url"].as_str() {
+                        Some(url) => url.to_string(),
+                        None => continue,
+                    },
+                    path: match classifier["path"].as_str() {
+                        Some(path) => path.to_string(),
+                        None => continue,
+                    },
+                },
+                is_native_library: true,
+            });
+            continue;
+        }
+
         let name: Vec<&str> = name.unwrap().split(":").collect();
         if name.len() != 3 {
             continue;
         }
+
         let package = name.get(0).unwrap().replace(".", "/");
         let version = name.get(2).unwrap();
         let name = name.get(1).unwrap();
@@ -537,7 +632,7 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
         }
         let path = format!("{package}/{name}/{version}/{name}-{version}.jar");
         result.push(ResolvedLibrary {
-            artifact: Artifact {
+            download_info: Artifact {
                 sha1: "".to_string(),
                 size: 0,
                 url: format!("{url}{path}"),

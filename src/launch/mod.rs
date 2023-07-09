@@ -50,7 +50,7 @@
 //! }
 //! ```
 //!
-//! Finally, you can use the [`LaunchOptions`] to build a [`Launcher`] instance, then launch the
+//! Finally, you can build a [`Launcher`] instance, then launch the
 //! game using [`Launcher::launch()`].
 //!
 //! ```
@@ -70,26 +70,26 @@ use std::process::ExitStatus;
 use std::string::ToString;
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde_json::Value;
 use tokio::process::Command;
+use zip::ZipArchive;
 
-use crate::core::{DELIMITER, JavaExec, OsType, PlatformInfo};
 use crate::core::folder::MinecraftLocation;
 use crate::core::version::{ResolvedVersion, Version};
+use crate::core::{JavaExec, OsType, PlatformInfo, DELIMITER};
+use crate::utils::unzip::decompression_all;
 
-pub static DEFAULT_EXTRA_JVM_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
-    vec![
-        "Xmx2G".to_string(),
-        "-XX:+UnlockExperimentalVMOptions".to_string(),
-        "-XX:+UseG1GC".to_string(),
-        "-XX:G1NewSizePercent=20".to_string(),
-        "-XX:G1ReservePercent=20".to_string(),
-        "-XX:MaxGCPauseMillis=50".to_string(),
-        "-XX:G1HeapRegionSize=32M".to_string(),
-    ]
-});
+// pub static DEFAULT_EXTRA_JVM_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
+//     vec![
+//         "-XX:+UnlockExperimentalVMOptions".to_string(),
+//         "-XX:+UseG1GC".to_string(),
+//         "-XX:G1NewSizePercent=20".to_string(),
+//         "-XX:G1ReservePercent=20".to_string(),
+//         "-XX:MaxGCPauseMillis=50".to_string(),
+//         "-XX:G1HeapRegionSize=32M".to_string(),
+//     ]
+// });
 
 #[derive(Debug, Clone)]
 pub struct GameProfile {
@@ -193,10 +193,10 @@ pub struct LaunchOptions {
     pub java_path: PathBuf,
 
     /// Min memory, this will add a jvm flag -XMS to the command result
-    pub min_memory: Option<u32>,
+    pub min_memory: u32,
 
     /// Max memory, this will add a jvm flag -Xmx to the command result
-    pub max_memory: Option<u32>,
+    pub max_memory: u32,
 
     /// Directly launch to a server.
     pub server: Option<Server>,
@@ -218,11 +218,6 @@ pub struct LaunchOptions {
     pub extra_mc_args: Vec<String>,
 
     pub is_demo: bool,
-
-    /// Native directory. It's .minecraft/versions/<version>/<version>-natives by default.
-    ///
-    /// You can replace this by your self.
-    pub native_root: PathBuf,
 
     // Todo: yggdrasilAgent
     /// Add `-Dfml.ignoreInvalidMinecraftCertificates=true` to jvm argument
@@ -285,16 +280,15 @@ impl LaunchOptions {
             version_root: minecraft.get_version_root(version_id),
             resource_path: minecraft.root.clone(),
             java_path: Path::new("java").to_path_buf(),
-            min_memory: None,
-            max_memory: Some(2048),
+            min_memory: 128,
+            max_memory: 2048,
             server: None,
             width: 854,
             height: 480,
             fullscreen: false,
-            extra_jvm_args: DEFAULT_EXTRA_JVM_ARGS.clone(),
+            extra_jvm_args: vec![],
             extra_mc_args: Vec::new(),
             is_demo: false,
-            native_root: minecraft.get_natives_root(version_id),
             ignore_invalid_minecraft_certificates: false,
             ignore_patch_discrepancies: false,
             extra_class_paths: None,
@@ -313,6 +307,7 @@ impl LaunchOptions {
 ///
 /// You can use `from_launch_options` to generate launch parameters and use `to_launch_command` to
 /// convert to shell commands
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LaunchArguments(Vec<String>);
 
 const DEFAULT_GAME_ICON: &[u8] = include_bytes!("./assets/minecraft.icns");
@@ -341,7 +336,7 @@ impl LaunchArguments {
             "-Dminecraft.client.jar={version_jar}",
             version_jar = launch_options
                 .version_root
-                .join(&launch_options.version_id)
+                .join(&format!("{}.jar", &launch_options.version_id))
                 .to_string_lossy()
         ));
 
@@ -356,12 +351,8 @@ impl LaunchArguments {
             ));
         }
 
-        if let Some(min_memory) = launch_options.min_memory {
-            command_arguments.push(format!("-Xms{min_memory}M"));
-        }
-        if let Some(max_memory) = launch_options.max_memory {
-            command_arguments.push(format!("-Xmx{max_memory}M"));
-        }
+        command_arguments.push(format!("-Xms{}M", launch_options.min_memory));
+        command_arguments.push(format!("-Xmx{}M", launch_options.max_memory));
 
         if launch_options.ignore_invalid_minecraft_certificates {
             command_arguments.push("-Dfml.ignoreInvalidMinecraftCertificates=true".to_string());
@@ -416,30 +407,35 @@ impl LaunchArguments {
         }
 
         command_arguments.extend([
-            "-Xverify:none".to_string(),
             "-XX:MaxInlineSize=420".to_string(),
             "-XX:-UseAdaptiveSizePolicy".to_string(),
             "-XX:-OmitStackTraceInFastThrow".to_string(),
             "-XX:-DontCompileHugeMethods".to_string(),
-            "-Xss:1m".to_string(),
-            "-Xmn128m".to_string(),
             "-Djava.rmi.server.useCodebaseOnly=true".to_string(),
             "-Dcom.sun.jndi.rmi.object.trustURLCodebase=false".to_string(),
             "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false".to_string(),
             "-Dlog4j2.formatMsgNoLookups=true".to_string(),
         ]); // todo: test the jvm args
-        // todo: support proxy
+            // todo: support proxy
 
         let mut jvm_options: HashMap<&str, String> = HashMap::new();
         jvm_options.insert(
             "natives_directory",
-            launch_options.native_root.to_string_lossy().to_string(),
+            minecraft
+                .get_natives_root(&launch_options.version_id, &platform)
+                .to_string_lossy()
+                .to_string(),
         );
         jvm_options.insert("launcher_name", launch_options.launcher_name);
         jvm_options.insert("launcher_version", launch_options.launcher_version);
         jvm_options.insert(
             "classpath",
-            resolve_classpath(&version, &minecraft, launch_options.extra_class_paths),
+            resolve_classpath(
+                &version,
+                &minecraft,
+                launch_options.extra_class_paths,
+                &platform,
+            ),
         );
 
         let mut jvm_arguments = version.arguments.clone().unwrap().jvm;
@@ -529,8 +525,8 @@ impl LaunchArguments {
         }
         let no_width_arguments = None
             == command_arguments
-            .iter()
-            .find(|v| v == &&"--width".to_string());
+                .iter()
+                .find(|v| v == &&"--width".to_string());
         if no_width_arguments && !launch_options.fullscreen {
             command_arguments.extend(vec![
                 "--width".to_string(),
@@ -592,11 +588,14 @@ impl LaunchArguments {
             };
         }
         // todo(after java exec): add -Dfile.encoding=encoding.name() and other
-        let launch_options = self.0.join(" ").to_string();
-        command.arg(format!(
-            "{java} {launch_options}",
-            java = java_exec.binary.to_string_lossy().to_string()
-        ));
+        // let launch_options = self.0.join(" ").to_string();
+        // command.arg(format!(
+        //     "{java} {launch_options}",
+        //     java = java_exec.binary.to_string_lossy().to_string()
+        // ));
+        let mut launch_command = vec![java_exec.binary.to_string_lossy().to_string()];
+        launch_command.extend(self.0.clone());
+        command.args(launch_command);
         command
     }
 }
@@ -605,14 +604,28 @@ fn resolve_classpath(
     version: &ResolvedVersion,
     minecraft: &MinecraftLocation,
     extra_class_paths: Option<Vec<String>>,
+    platform: &PlatformInfo,
 ) -> String {
     let mut classpath = version
         .libraries
         .iter()
-        .filter(|lib| !lib.is_native_library)
+        .filter(|lib| {
+            if lib.is_native_library {
+                let path = minecraft.get_library_by_path(&lib.download_info.path);
+                let native_folder = minecraft.get_natives_root(&version.id, &platform);
+                println!("{:#?},{:#?}", path, native_folder);
+                if let Ok(file) = std::fs::File::open(path) {
+                    if let Ok(mut zip_archive) = ZipArchive::new(file) {
+                        decompression_all(&mut zip_archive, &native_folder).unwrap();
+                        // decompression_all(&mut zip_archive, &native_folder).unwrap_or(());
+                    }
+                }
+            }
+            !lib.is_native_library
+        })
         .map(|lib| {
             minecraft
-                .get_library_by_path(lib.artifact.path.clone())
+                .get_library_by_path(lib.download_info.path.clone())
                 .to_string_lossy()
                 .to_string()
         })
@@ -655,27 +668,35 @@ pub struct Launcher {
     pub check_game_integrity: bool,
 
     pub exit_status: Option<ExitStatus>,
+
+    pub java: JavaExec,
 }
 
 impl Launcher {
     /// spawn an instance with default launch options
-    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Result<Self> {
+    pub async fn new(
+        version_id: &str,
+        minecraft: MinecraftLocation,
+        java: JavaExec,
+    ) -> Result<Self> {
         let launch_options = LaunchOptions::new(version_id, minecraft.clone()).await?;
         Ok(Self {
             launch_options,
             minecraft,
             check_game_integrity: true,
             exit_status: None,
+            java,
         })
     }
 
     /// spawn an instance with custom launch options
-    pub async fn from_options(launch_options: LaunchOptions) -> Self {
+    pub async fn from_options(launch_options: LaunchOptions, java: JavaExec) -> Self {
         Self {
             minecraft: launch_options.minecraft_location.clone(),
             launch_options,
             check_game_integrity: true,
             exit_status: None,
+            java,
         }
     }
 
@@ -690,15 +711,35 @@ impl Launcher {
             .version
             .parse(&self.minecraft, &platform)
             .await?;
+        // let a = LaunchArguments::from_launch_options(options, version).await?;
+
+        // println!("{:#?}", a);
         let mut command = LaunchArguments::from_launch_options(options.clone(), version.clone())
             .await?
-            .to_async_command(
-                JavaExec::new(&"/usr/lib64/jvm/java-17-openjdk-17").await,
-                options,
-                &platform,
-            );
+            .to_async_command(self.java.clone(), options, &platform);
         let mut child = command.spawn()?;
         self.exit_status = Some(child.wait().await?);
         Ok(())
     }
+}
+
+#[tokio::test]
+async fn test() {
+    // use crate::core::task::TaskEventListeners;
+    // use crate::install::install;
+    // install(
+    //     "b1.4",
+    //     MinecraftLocation::new("test"),
+    //     TaskEventListeners::new(),
+    // )
+    // .await
+    // .unwrap();
+    let minecraft = MinecraftLocation::new("test");
+    let options = LaunchOptions::new("1.7.2", minecraft).await.unwrap();
+    let mut launcher = Launcher::from_options(
+        options,
+        JavaExec::new("/usr/lib64/jvm/java-1.8.0-openjdk-1.8.0/jre").await,
+    )
+    .await;
+    launcher.launch().await.unwrap();
 }

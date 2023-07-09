@@ -33,12 +33,14 @@
 //! );
 //! ```
 
+use std::ffi::OsStr;
 use std::{
     fmt::Display,
     format,
     path::{Path, PathBuf},
 };
-use std::ffi::OsStr;
+
+use super::PlatformInfo;
 
 #[derive(Debug, Clone)]
 /// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.
@@ -74,16 +76,19 @@ impl MinecraftLocation {
         }
     }
 
-    pub fn get_natives_root(&self, version: &str) -> PathBuf {
-        PathBuf::from(version).join(format!("{version}-natives.jar"))
+    pub fn get_natives_root(&self, version: &str, platform: &PlatformInfo) -> PathBuf {
+        self.versions
+            .join(version)
+            .join(format!("natives-{}-{}", platform.name, platform.arch))
     }
 
     pub fn get_version_root<P: AsRef<Path>>(&self, version: P) -> PathBuf {
-        PathBuf::from(self.versions.clone()).join(version)
+        self.versions.join(version)
     }
 
     pub fn get_version_json<P: AsRef<Path> + Display>(&self, version: P) -> PathBuf {
-        PathBuf::from(self.get_version_root(&version)).join(format!("{version}.json"))
+        self.get_version_root(&version)
+            .join(format!("{version}.json"))
     }
 
     pub fn get_version_jar<P: AsRef<Path> + Display>(
@@ -140,4 +145,10 @@ pub fn get_path(path: &PathBuf) -> String {
         None => panic!("New path is noe a valid UTF-8 sequence!"),
         Some(s) => String::from(s),
     }
+}
+
+#[tokio::test]
+async fn test() {
+    let minecraft = MinecraftLocation::new("test");
+    println!("{:?}", minecraft.get_natives_root("1.19.4", &PlatformInfo::new().await));
 }

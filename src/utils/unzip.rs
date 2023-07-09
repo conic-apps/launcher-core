@@ -18,13 +18,15 @@
 
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     fs::File,
     io::{self, Read},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
+use anyhow::Result;
 use tokio::fs::create_dir_all;
-use zip::{CompressionMethod, DateTime, read::ZipFile, ZipArchive};
+use zip::{read::ZipFile, CompressionMethod, DateTime, ZipArchive};
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -154,4 +156,34 @@ pub async fn decompression_files<R: Read + io::Seek>(
         create_dir_all(task.1.parent().unwrap()).await.unwrap();
         tokio::fs::write(task.1, buf).await.unwrap();
     }
+}
+
+pub fn decompression_all<R: Read + io::Seek, S: AsRef<OsStr> + ?Sized>(
+    zip_archive: &mut ZipArchive<R>,
+    to: &S,
+) -> Result<()> {
+    let to = Path::new(to).to_path_buf();
+    for i in 0..zip_archive.len() {
+        let mut zip_file = zip_archive.by_index(i).unwrap();
+        let name = zip_file.name().to_string();
+        let entry = Entry::from_zip_file(&mut zip_file);
+        let path = to.join(&name);
+        // println!("{} => {}", name, path.display());
+        if zip_file.is_dir() {
+            std::fs::create_dir_all(zip_file.name()).unwrap();
+            continue;
+        }
+        std::fs::create_dir_all(
+            path.parent()
+                .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
+        )?;
+        std::fs::write(path, entry.content).unwrap();
+        // for entry in entries {
+        //     let entry = entry.to_string();
+        //     if name == entry {
+        //         resolved_entries.insert(entry, Entry::from_zip_file(&mut zip_file));
+        //     }
+        // }
+    }
+    Ok(())
 }

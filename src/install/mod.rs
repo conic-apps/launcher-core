@@ -21,16 +21,16 @@ use reqwest::Url;
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
+use crate::core::version::ResolvedLibrary;
 use crate::{
     core::{
         folder::{get_path, MinecraftLocation},
-        PlatformInfo,
         task::TaskEventListeners,
         version::{self, AssetIndex, AssetIndexObject, ResolvedVersion, VersionManifest},
+        PlatformInfo,
     },
-    utils::download::{Download, download_files},
+    utils::download::{download_files, Download},
 };
-use crate::core::version::ResolvedLibrary;
 
 pub mod fabric;
 pub mod forge;
@@ -45,14 +45,17 @@ pub(crate) fn generate_libraries_download_list(
         .clone()
         .into_iter()
         .map(|library| Download {
-            url: format!("https://download.mcbbs.net/maven/{}", library.artifact.path),
+            url: format!(
+                "https://download.mcbbs.net/maven/{}",
+                library.download_info.path
+            ),
             file: minecraft_location
                 .libraries
-                .join(library.artifact.path)
+                .join(library.download_info.path)
                 .to_str()
                 .unwrap()
                 .to_string(),
-            sha1: Some(library.artifact.sha1),
+            sha1: Some(library.download_info.sha1),
         })
         .collect()
 }
@@ -174,7 +177,7 @@ pub async fn install(
                 .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
             &minecraft_location,
         )
-            .await?,
+        .await?,
     );
 
     download_files(download_list, listeners, false).await?;
@@ -193,4 +196,22 @@ pub async fn install(
 //     // let version = crate::core::version::Version::from_str(&raw).unwrap().parse(minecraft_location.clone());
 //     // install_dependencies(version, a, minecraft_location.clone()).await;
 //     // c.task.await;
+// }
+
+// #[tokio::test]
+// async fn install_all_test() {
+//     let versions = VersionManifest::new()
+//         .await
+//         .unwrap()
+//         .versions
+//         .iter()
+//         .filter(|v| v.r#type != "snapshot")
+//         .map(|v| v.id.clone())
+//         .collect::<Vec<String>>();
+//     println!("versions: {}", versions.len());
+//     for version_id in versions {
+//         println!("installing {version_id}");
+//         let listeners = TaskEventListeners::new();
+//         install(&version_id, MinecraftLocation::new("test"), listeners).await.unwrap();
+//     }
 // }
