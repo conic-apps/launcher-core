@@ -49,7 +49,6 @@
 use std::{collections::HashMap, ffi::OsStr, path::Path};
 
 use anyhow::Result;
-use regex::Match;
 use serde_json::Value;
 
 pub mod fabric;

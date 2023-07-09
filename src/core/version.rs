@@ -28,62 +28,58 @@ use crate::core::folder::MinecraftLocation;
 
 use super::PlatformInfo;
 
-// const DEFAULT_GAME_ARGS: Vec<Value> = vec![
-//     Value::String("()")
-//     // Value::from("value")
-//     // "--username".to_string(),
-
-//     // "${auth_player_name}".to_string(),
-//     // "--version".to_string(),
-//     // "${version_name}".to_string(),
-//     // "--gameDir".to_string(),
-//     // "${game_directory}".to_string(
-//     // "--assetsDir".to_string(),
-//     // "${assets_root}".to_string(),
-//     // "--assetIndex".to_string(),
-// ];
-
-static DEFAULT_GAME_ARGS: Lazy<Vec<Value>> = Lazy::new(|| {
+static DEFAULT_GAME_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
     vec![
-        Value::from("--username".to_string()),
-        Value::from("${auth_player_name}".to_string()),
-        Value::from("--version".to_string()),
-        Value::from("${version_name}".to_string()),
-        Value::from("--gameDir".to_string()),
-        Value::from("${game_directory}".to_string()),
-        Value::from("--assetsDir".to_string()),
-        Value::from("${assets_root}".to_string()),
-        // Value::from("--assetIndex".to_string()),
-        // Value::from("${asset_index}".to_string()),
-        Value::from("--uuid".to_string()),
-        Value::from("${auth_uuid}".to_string()),
-        Value::from("--accessToken".to_string()),
-        Value::from("${auth_access_token}".to_string()),
-        // Value::from("--clientId".to_string()),
-        // Value::from("${clientid}".to_string()),
-        // Value::from("--xuid".to_string()),
-        // Value::from("${auth_xuid}".to_string()),
-        // Value::from("--userType".to_string()),
-        // Value::from("${user_type}".to_string()),
-        // Value::from("--versionType".to_string()),
-        // Value::from("${version_type}".to_string()),
-        Value::from("--width".to_string()),
-        Value::from("${resolution_width}".to_string()),
-        Value::from("--height".to_string()),
-        Value::from("${resolution_height}".to_string()),
+        "--username".to_string(),
+        "${auth_player_name}".to_string(),
+        "--version".to_string(),
+        "${version_name}".to_string(),
+        "--gameDir".to_string(),
+        "${game_directory}".to_string(),
+        "--assetsDir".to_string(),
+        "${assets_root}".to_string(),
+        "--assetIndex".to_string(),
+        "${asset_index}".to_string(),
+        "--uuid".to_string(),
+        "${auth_uuid}".to_string(),
+        "--accessToken".to_string(),
+        "${auth_access_token}".to_string(),
+        "--clientId".to_string(),
+        "${clientid}".to_string(),
+        "--xuid".to_string(),
+        "${auth_xuid}".to_string(),
+        "--userType".to_string(),
+        "${user_type}".to_string(),
+        "--versionType".to_string(),
+        "${version_type}".to_string(),
+        "--width".to_string(),
+        "${resolution_width}".to_string(),
+        "--height".to_string(),
+        "${resolution_height}".to_string(),
     ]
 });
 
-static DEFAULT_JVM_ARGS: Lazy<Vec<Value>> = Lazy::new(|| {
+static DEFAULT_JVM_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
     vec![
-        Value::from("-Djava.library.path=${natives_directory}".to_string()),
-        Value::from("-Djna.tmpdir=${natives_directory}".to_string()),
-        Value::from("-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}".to_string()),
-        Value::from("-Dio.netty.native.workdir=${natives_directory}".to_string()),
-        Value::from("-Dminecraft.launcher.brand=${launcher_name}".to_string()),
-        Value::from("-Dminecraft.launcher.version=${launcher_version}".to_string()),
-        Value::from("-cp".to_string()),
-        Value::from("${classpath}".to_string()),
+        "\"-Djava.library.path=${natives_directory}\"".to_string(),
+        // "\"-Djna.tmpdir=${natives_directory}\"".to_string(),
+        // "\"-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}\"".to_string(),
+        // "\"-Dio.netty.native.workdir=${natives_directory}\"".to_string(),
+        "\"-Dminecraft.launcher.brand=${launcher_name}\"".to_string(),
+        "\"-Dminecraft.launcher.version=${launcher_version}\"".to_string(),
+        "\"-Dfile.encoding=UTF-8\"".to_string(),
+        "\"-Dsun.stdout.encoding=UTF-8\"".to_string(),
+        "\"-Dsun.stderr.encoding=UTF-8\"".to_string(),
+        "\"-Djava.rmi.server.useCodebaseOnly=true\"".to_string(),
+        "\"-XX:MaxInlineSize=420\"".to_string(),
+        "\"-XX:-UseAdaptiveSizePolicy\"".to_string(),
+        "\"-XX:-OmitStackTraceInFastThrow\"".to_string(),
+        "\"-XX:-DontCompileHugeMethods\"".to_string(),
+        "\"-Dcom.sun.jndi.rmi.object.trustURLCodebase=false\"".to_string(),
+        "\"-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false\"".to_string(),
+        "\"-Dlog4j2.formatMsgNoLookups=true\"".to_string(),
+        "-cp".to_string(),
+        "${classpath}".to_string(),
     ]
 });
 
@@ -101,6 +97,8 @@ pub struct VersionInfo {
     pub url: String,
     pub time: String,
     pub release_time: String,
+    pub sha1: String,
+    pub compliance_level: u8,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -112,7 +110,7 @@ pub struct VersionManifest {
 impl VersionManifest {
     pub async fn new() -> Result<VersionManifest> {
         let response =
-            reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest.json").await?;
+            reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json").await?;
         Ok(response.json::<VersionManifest>().await?)
     }
 }
@@ -144,7 +142,7 @@ pub struct AssetIndexObjectInfo {
 pub type AssetIndexObject = HashMap<String, AssetIndexObjectInfo>;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-pub struct Artifact {
+pub struct LibraryDownload {
     pub sha1: String,
     pub size: u64,
     pub url: String,
@@ -161,7 +159,7 @@ pub struct LoggingFile {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct NormalLibrary {
     pub name: String,
-    pub downloads: HashMap<String, Artifact>,
+    pub downloads: HashMap<String, LibraryDownload>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -179,8 +177,8 @@ pub struct Extract {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct NativeLibrary {
     pub name: String,
-    pub downloads: HashMap<String, Artifact>,
-    pub classifiers: HashMap<String, Artifact>,
+    pub downloads: HashMap<String, LibraryDownload>,
+    pub classifiers: HashMap<String, LibraryDownload>,
     pub rules: Vec<Rule>,
     pub extract: Extract,
     pub natives: HashMap<String, String>,
@@ -189,7 +187,7 @@ pub struct NativeLibrary {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct PlatformSpecificLibrary {
     pub name: String,
-    pub downloads: HashMap<String, Artifact>,
+    pub downloads: HashMap<String, LibraryDownload>,
     pub rules: Vec<Rule>,
 }
 
@@ -424,8 +422,22 @@ impl Version {
 
         let mut assets = "".to_string();
         let mut minimum_launcher_version = 0;
-        let mut game_args = DEFAULT_GAME_ARGS.clone();
-        let mut jvm_args = DEFAULT_JVM_ARGS.clone();
+        // let game_args = match self.arguments.clone() {
+        //     None => DEFAULT_GAME_ARGS.clone(),
+        //     Some(v) => match v.game {
+        //         None => DEFAULT_GAME_ARGS.clone(),
+        //         Some(v) => v,
+        //     },
+        // };
+        // let jvm_args = match self.arguments.clone() {
+        //     None => DEFAULT_JVM_ARGS.clone(),
+        //     Some(v) => match v.jvm {
+        //         None => DEFAULT_JVM_ARGS.clone(),
+        //         Some(v) => v,
+        //     },
+        // };
+        let game_args = DEFAULT_GAME_ARGS.clone();
+        let jvm_args = DEFAULT_JVM_ARGS.clone();
         let mut release_time = "".to_string();
         let mut time = "".to_string();
         let mut version_type = "".to_string();
@@ -452,14 +464,14 @@ impl Version {
                 minimum_launcher_version,
             );
 
-            if let Some(arguments) = version.arguments {
-                if let Some(mut game) = arguments.game {
-                    game_args.append(&mut game);
-                }
-                if let Some(mut jvm) = arguments.jvm {
-                    jvm_args.append(&mut jvm);
-                }
-            }
+            // if let Some(arguments) = version.arguments {
+            //     if let Some(mut game) = arguments.game {
+            //         game_args.append(&mut game);
+            //     }
+            //     if let Some(mut jvm) = arguments.jvm {
+            //         jvm_args.append(&mut jvm);
+            //     }
+            // }
 
             release_time = version.release_time.unwrap_or(release_time);
             time = version.time.unwrap_or(time);
@@ -491,8 +503,10 @@ impl Version {
         Ok(ResolvedVersion {
             id: self.id.clone(),
             arguments: Some(ResolvedArguments {
-                game: resolve_arguments(game_args, platform).await,
-                jvm: resolve_arguments(jvm_args, platform).await,
+                game: game_args,
+                jvm: jvm_args,
+                // game: resolve_arguments(game_args, platform).await,
+                // jvm: resolve_arguments(jvm_args, platform).await,
             }),
             main_class,
             asset_index: self.asset_index.clone(),
@@ -523,11 +537,11 @@ pub struct ResolvedArguments {
 
 #[derive(Debug, Clone)]
 pub struct ResolvedLibrary {
-    pub download_info: Artifact,
+    pub download_info: LibraryDownload,
     pub is_native_library: bool,
 }
 
-async fn resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> Vec<String> {
+async fn _resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> Vec<String> {
     let mut result = Vec::with_capacity(arguments.len());
     for argument in arguments {
         if argument.is_string() {
@@ -570,18 +584,6 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
                 continue;
             }
         }
-        if library["downloads"]["artifact"].is_object() {
-            result.push(ResolvedLibrary {
-                download_info: serde_json::from_value(library["downloads"]["artifact"].clone())
-                    .unwrap(),
-                is_native_library: library["downloads"]["classifiers"].is_object(),
-            });
-            continue;
-        }
-        let name = library["name"].as_str();
-        if name == None {
-            continue;
-        }
         // resolve native lib
         let classifiers = library["downloads"]["classifiers"].as_object();
         let natives = library["natives"].as_object();
@@ -598,7 +600,7 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
             }
             let classifier = classifier.unwrap();
             result.push(ResolvedLibrary {
-                download_info: Artifact {
+                download_info: LibraryDownload {
                     sha1: classifier["sha1"].as_str().unwrap_or("").to_string(),
                     size: classifier["size"].as_u64().unwrap_or(0),
                     url: match classifier["url"].as_str() {
@@ -614,6 +616,21 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
             });
             continue;
         }
+        // resolve common lib
+        if library["downloads"]["artifact"].is_object() {
+            result.push(ResolvedLibrary {
+                download_info: serde_json::from_value(library["downloads"]["artifact"].clone())
+                    .unwrap(),
+                is_native_library: library["downloads"]["classifiers"].is_object(),
+            });
+            continue;
+        }
+        let name = library["name"].as_str();
+        if name == None {
+            continue;
+        }
+
+        // resolve forge
 
         let name: Vec<&str> = name.unwrap().split(":").collect();
         if name.len() != 3 {
@@ -632,7 +649,7 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
         }
         let path = format!("{package}/{name}/{version}/{name}-{version}.jar");
         result.push(ResolvedLibrary {
-            download_info: Artifact {
+            download_info: LibraryDownload {
                 sha1: "".to_string(),
                 size: 0,
                 url: format!("{url}{path}"),
@@ -654,19 +671,20 @@ fn check_allowed(rules: Vec<Value>, platform: &PlatformInfo) -> bool {
     let mut allow = false;
     for rule in rules {
         let action = rule["action"].as_str().unwrap() == "allow";
-        // apply by default
         let os = rule["os"].clone();
         if !os.is_object() {
             allow = action;
             continue;
         }
-        // don't apply by default if has os rule
         if !os["name"].is_string() {
             allow = action;
             continue;
         }
         if platform.name != os["name"].as_str().unwrap() {
             continue;
+        }
+        if os["features"].is_object() {
+            return false;
         }
         if !os["version"].is_string() {
             allow = action;

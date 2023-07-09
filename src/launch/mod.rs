@@ -72,6 +72,7 @@ use std::string::ToString;
 use anyhow::Result;
 use regex::Regex;
 use serde_json::Value;
+use tokio::fs;
 use tokio::process::Command;
 use zip::ZipArchive;
 
@@ -253,6 +254,8 @@ pub struct LaunchOptions {
     pub gc: GC,
 
     pub minecraft_location: MinecraftLocation,
+
+    pub native_path: PathBuf,
 }
 
 impl LaunchOptions {
@@ -266,8 +269,10 @@ impl LaunchOptions {
             game_profile: GameProfile {
                 name: "Steve".to_string(),
                 uuid: uuid::Uuid::new_v4().to_string().replace('-', ""),
+                // uuid: "100062fc9db949789bccc0f781cc0cad".to_string()
             },
             access_token: uuid::Uuid::new_v4().to_string().replace('-', ""),
+            // access_token: "eyJraWQiOiJhYzg0YSIsImFsZyI6IkhTMjU2In0.eyJ4dWlkIjoiMjUzNTQyNzc5NTA3MzUxOCIsImFnZyI6IkFkdWx0Iiwic3ViIjoiNThjZDc4MzQtMzZjMi00YjFmLThkMjUtYTdhMmUwMDE2Y2E5IiwiYXV0aCI6IlhCT1giLCJucyI6ImRlZmF1bHQiLCJyb2xlcyI6W10sImlzcyI6ImF1dGhlbnRpY2F0aW9uIiwiZmxhZ3MiOlsidHdvZmFjdG9yYXV0aCIsIm9yZGVyc18yMDIyIl0sInBsYXRmb3JtIjoiVU5LTk9XTiIsInl1aWQiOiIzZGFlYzJmZjMxMjYwMjFhNzk3YWJjNDJiYzU4MDIzMSIsIm5iZiI6MTY4ODkwNjQ2MywiZXhwIjoxNjg4OTkyODYzLCJpYXQiOjE2ODg5MDY0NjN9.BL3S2hA94toLOzEIv048oemlEumiKHR59CtuCFKb6_w".to_string(),
             user_type: UserType::Mojang,
             properties: "{}".to_string(),
             launcher_name: "Magical_Launcher".to_string(),
@@ -299,6 +304,7 @@ impl LaunchOptions {
             version_id: version_id.to_string(),
             gc: GC::G1,
             minecraft_location: minecraft.clone(),
+            native_path: MinecraftLocation::get_natives_root(),
         })
     }
 }
@@ -321,7 +327,7 @@ impl LaunchArguments {
         let platform = PlatformInfo::new().await;
         let minecraft = MinecraftLocation::new(&launch_options.resource_path);
 
-        let game_icon = match launch_options.game_icon {
+        let game_icon = match launch_options.game_icon.clone() {
             Some(icon_path) => icon_path,
             None => {
                 let icon_path = minecraft.assets.join("minecraft.icns");
@@ -392,7 +398,7 @@ impl LaunchArguments {
             }
         }
 
-        if let Some(ygg) = launch_options.yggdrasil_agent {
+        if let Some(ygg) = launch_options.yggdrasil_agent.clone() {
             command_arguments.push(format!(
                 "-javaagent:{jar}={server}",
                 jar = ygg.jar.to_string_lossy(),
@@ -406,35 +412,32 @@ impl LaunchArguments {
             }
         }
 
-        command_arguments.extend([
-            "-XX:MaxInlineSize=420".to_string(),
-            "-XX:-UseAdaptiveSizePolicy".to_string(),
-            "-XX:-OmitStackTraceInFastThrow".to_string(),
-            "-XX:-DontCompileHugeMethods".to_string(),
-            "-Djava.rmi.server.useCodebaseOnly=true".to_string(),
-            "-Dcom.sun.jndi.rmi.object.trustURLCodebase=false".to_string(),
-            "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false".to_string(),
-            "-Dlog4j2.formatMsgNoLookups=true".to_string(),
-        ]); // todo: test the jvm args
-            // todo: support proxy
+        // command_arguments.extend([
+        //     "-XX:MaxInlineSize=420".to_string(),
+        //     "-XX:-UseAdaptiveSizePolicy".to_string(),
+        //     "-XX:-OmitStackTraceInFastThrow".to_string(),
+        //     "-XX:-DontCompileHugeMethods".to_string(),
+        //     "-Djava.rmi.server.useCodebaseOnly=true".to_string(),
+        //     "-Dcom.sun.jndi.rmi.object.trustURLCodebase=false".to_string(),
+        //     "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false".to_string(),
+        //     "-Dlog4j2.formatMsgNoLookups=true".to_string(),
+        // ]); // todo: test the jvm args
+        // todo: support proxy
 
         let mut jvm_options: HashMap<&str, String> = HashMap::new();
         jvm_options.insert(
             "natives_directory",
-            minecraft
-                .get_natives_root(&launch_options.version_id, &platform)
-                .to_string_lossy()
-                .to_string(),
+            launch_options.native_path.to_string_lossy().to_string(),
         );
-        jvm_options.insert("launcher_name", launch_options.launcher_name);
-        jvm_options.insert("launcher_version", launch_options.launcher_version);
+        jvm_options.insert("launcher_name", launch_options.launcher_name.clone());
+        jvm_options.insert("launcher_version", launch_options.launcher_version.clone());
         jvm_options.insert(
             "classpath",
             resolve_classpath(
+                &launch_options,
                 &version,
                 &minecraft,
-                launch_options.extra_class_paths,
-                &platform,
+                launch_options.extra_class_paths.clone(),
             ),
         );
 
@@ -485,6 +488,15 @@ impl LaunchArguments {
                 .join(&version.assets)
                 .to_string_lossy()
                 .to_string(),
+        );
+        game_options.insert(
+            "asset_index",
+            version
+                .asset_index
+                .ok_or(anyhow::anyhow!(
+                    "asset index is not fount! version.json is broken"
+                ))?
+                .id,
         );
         game_options.insert("assets_index_name", version.assets);
         game_options.insert(
@@ -540,12 +552,74 @@ impl LaunchArguments {
     }
 
     /// spawn a command instance, you can use this to launch the game
-    pub fn to_async_command(
+    pub async fn to_async_command(
         &self,
         java_exec: JavaExec,
         launch_options: LaunchOptions,
         platform: &PlatformInfo,
-    ) -> Command {
+    ) -> Result<Command> {
+        let mut command = format!(
+            "cd {}\n",
+            launch_options.version_root.to_string_lossy().to_string()
+        );
+        match platform.os_type {
+            OsType::Windows => {}
+            _ => command.push_str("nice "),
+        };
+
+        if let OsType::Windows = platform.os_type {
+            command.push_str(" -c ");
+        }
+
+        if platform.os_type != OsType::Windows {
+            match launch_options.process_priority {
+                ProcessPriority::High => {
+                    command.push_str("-n 0 ");
+                }
+                ProcessPriority::AboveNormal => {
+                    command.push_str("-n 5 ");
+                }
+                ProcessPriority::Normal => (), // nothing to do
+                ProcessPriority::BelowNormal => {
+                    command.push_str("-n 15 ");
+                }
+                ProcessPriority::LOW => {
+                    command.push_str("-n 19 ");
+                }
+            };
+        }
+        // todo(after java exec): add -Dfile.encoding=encoding.name() and other
+        // let launch_options = self.0.join(" ").to_string();
+        // command.arg(format!(
+        //     "{java} {launch_options}",
+        //     java = java_exec.binary.to_string_lossy().to_string()
+        // ));
+        let mut launch_command = java_exec.binary.to_string_lossy().to_string();
+        launch_command.push_str(" ");
+        launch_command.push_str(&self.0.clone().join(" "));
+        command.push_str(&launch_command);
+        match platform.os_type {
+            OsType::Windows => command.push_str(&format!(
+                "\ndel /F /Q {}\n",
+                launch_options.native_path.to_string_lossy()
+            )),
+            _ => command.push_str(&format!(
+                "\n rm -rf {}",
+                launch_options.native_path.to_string_lossy()
+            )),
+        }
+        let script_path = match platform.os_type {
+            OsType::Linux => launch_options.version_root.join(".cache").join("launch.sh"),
+            OsType::Osx => launch_options.version_root.join(".cache").join("launch.sh"),
+            OsType::Windows => launch_options
+                .version_root
+                .join(".cache")
+                .join("launch.bat"),
+        };
+
+        fs::create_dir_all(script_path.parent().unwrap()).await?;
+        fs::write(&script_path, command).await?;
+
         let mut command = match platform.os_type {
             OsType::Windows => {
                 let vars = vars().find(|v| v.0 == "PATH").unwrap();
@@ -557,54 +631,31 @@ impl LaunchArguments {
                         .find(|v| v.to_lowercase().contains("powershell"))
                         .unwrap(),
                 );
-                let powershell_exec = powershell_folder
-                    .join("powershell.exe")
-                    .to_string_lossy()
-                    .to_string();
-                Command::new(powershell_exec)
+
+                Command::new(
+                    powershell_folder
+                        .join("powershell.exe")
+                        .to_string_lossy()
+                        .to_string(),
+                )
             }
-            _ => Command::new("nice"),
+            _ => {
+                let mut chmod = Command::new("chmod");
+                chmod.args(&["+x", script_path.to_string_lossy().to_string().as_ref()]);
+                chmod.status().await?;
+                Command::new("bash")
+            }
         };
-
-        if let OsType::Windows = platform.os_type {
-            command.arg("-c");
-        }
-
-        if platform.os_type != OsType::Windows {
-            match launch_options.process_priority {
-                ProcessPriority::High => {
-                    command.args(&["-n", "0"]);
-                }
-                ProcessPriority::AboveNormal => {
-                    command.args(&["-n", "5"]);
-                }
-                ProcessPriority::Normal => (), // nothing to do
-                ProcessPriority::BelowNormal => {
-                    command.args(["-n", "15"]);
-                }
-                ProcessPriority::LOW => {
-                    command.args(["-n", "19"]);
-                }
-            };
-        }
-        // todo(after java exec): add -Dfile.encoding=encoding.name() and other
-        // let launch_options = self.0.join(" ").to_string();
-        // command.arg(format!(
-        //     "{java} {launch_options}",
-        //     java = java_exec.binary.to_string_lossy().to_string()
-        // ));
-        let mut launch_command = vec![java_exec.binary.to_string_lossy().to_string()];
-        launch_command.extend(self.0.clone());
-        command.args(launch_command);
-        command
+        command.arg(script_path);
+        Ok(command)
     }
 }
 
 fn resolve_classpath(
+    options: &LaunchOptions,
     version: &ResolvedVersion,
     minecraft: &MinecraftLocation,
     extra_class_paths: Option<Vec<String>>,
-    platform: &PlatformInfo,
 ) -> String {
     let mut classpath = version
         .libraries
@@ -612,12 +663,11 @@ fn resolve_classpath(
         .filter(|lib| {
             if lib.is_native_library {
                 let path = minecraft.get_library_by_path(&lib.download_info.path);
-                let native_folder = minecraft.get_natives_root(&version.id, &platform);
+                let native_folder = options.native_path.clone();
                 println!("{:#?},{:#?}", path, native_folder);
                 if let Ok(file) = std::fs::File::open(path) {
                     if let Ok(mut zip_archive) = ZipArchive::new(file) {
-                        decompression_all(&mut zip_archive, &native_folder).unwrap();
-                        // decompression_all(&mut zip_archive, &native_folder).unwrap_or(());
+                        decompression_all(&mut zip_archive, &native_folder).unwrap_or(());
                     }
                 }
             }
@@ -711,12 +761,10 @@ impl Launcher {
             .version
             .parse(&self.minecraft, &platform)
             .await?;
-        // let a = LaunchArguments::from_launch_options(options, version).await?;
-
-        // println!("{:#?}", a);
         let mut command = LaunchArguments::from_launch_options(options.clone(), version.clone())
             .await?
-            .to_async_command(self.java.clone(), options, &platform);
+            .to_async_command(self.java.clone(), options, &platform)
+            .await?;
         let mut child = command.spawn()?;
         self.exit_status = Some(child.wait().await?);
         Ok(())
@@ -725,21 +773,33 @@ impl Launcher {
 
 #[tokio::test]
 async fn test() {
-    // use crate::core::task::TaskEventListeners;
-    // use crate::install::install;
-    // install(
-    //     "b1.4",
-    //     MinecraftLocation::new("test"),
-    //     TaskEventListeners::new(),
-    // )
-    // .await
-    // .unwrap();
-    let minecraft = MinecraftLocation::new("test");
-    let options = LaunchOptions::new("1.7.2", minecraft).await.unwrap();
-    let mut launcher = Launcher::from_options(
-        options,
-        JavaExec::new("/usr/lib64/jvm/java-1.8.0-openjdk-1.8.0/jre").await,
-    )
-    .await;
-    launcher.launch().await.unwrap();
+    use crate::core::task::TaskEventListeners;
+    use crate::core::version::VersionManifest;
+    use crate::install::install;
+    let versions = VersionManifest::new()
+        .await
+        .unwrap()
+        .versions
+        .iter()
+        .filter(|v| v.r#type != "snapshot")
+        .map(|v| v.id.clone())
+        .collect::<Vec<String>>();
+    println!("versions: {}", versions.len());
+    for version_id in versions {
+        install(
+            &version_id,
+            MinecraftLocation::new("test"),
+            TaskEventListeners::new(),
+        )
+        .await
+        .unwrap();
+        let minecraft = MinecraftLocation::new("/home/brokendeer/桌面/magical-launcher-core/test");
+        let options = LaunchOptions::new(&version_id, minecraft).await.unwrap();
+        let mut launcher = Launcher::from_options(
+            options,
+            JavaExec::new("/usr/lib64/jvm/java-17-openjdk-17").await,
+        )
+        .await;
+        launcher.launch().await.unwrap();
+    }
 }

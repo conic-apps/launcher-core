@@ -30,7 +30,7 @@ use reqwest::Response;
 use zip::ZipArchive;
 
 use crate::{
-    core::{folder::MinecraftLocation, version::Artifact},
+    core::{folder::MinecraftLocation, version::LibraryDownload},
     install::forge::{
         install_profile::{InstallProfile, InstallProfileLegacy},
         legacy_install::install_legacy_forge_from_zip,
@@ -70,7 +70,7 @@ async fn download_forge_installer(
         },
         _ => String::new(),
     };
-    let library = Artifact {
+    let library = LibraryDownload {
         path: format!(
             "net/minecraftforge/forge/{}/forge-{}-installer.jar",
             forge_version, forge_version
@@ -89,7 +89,7 @@ async fn download_forge_installer(
         file: file_path.clone(),
         sha1: None,
     })
-        .await;
+    .await;
     Ok((file_path, response?))
 }
 
@@ -195,7 +195,7 @@ pub async fn install_forge(
                 profile,
                 options,
             )
-                .await;
+            .await;
         }
         ForgeType::Legacy => {
             let profile: InstallProfileLegacy = serde_json::from_str(&install_profile_json)?;

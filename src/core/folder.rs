@@ -40,8 +40,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::PlatformInfo;
-
 #[derive(Debug, Clone)]
 /// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.
 pub struct MinecraftLocation {
@@ -76,10 +74,9 @@ impl MinecraftLocation {
         }
     }
 
-    pub fn get_natives_root(&self, version: &str, platform: &PlatformInfo) -> PathBuf {
-        self.versions
-            .join(version)
-            .join(format!("natives-{}-{}", platform.name, platform.arch))
+    pub fn get_natives_root() -> PathBuf {
+        Path::new("/tmp/mgl-natives")
+            .join(uuid::Uuid::new_v4().to_string())
     }
 
     pub fn get_version_root<P: AsRef<Path>>(&self, version: P) -> PathBuf {
@@ -147,8 +144,11 @@ pub fn get_path(path: &PathBuf) -> String {
     }
 }
 
-#[tokio::test]
-async fn test() {
-    let minecraft = MinecraftLocation::new("test");
-    println!("{:?}", minecraft.get_natives_root("1.19.4", &PlatformInfo::new().await));
-}
+// #[tokio::test]
+// async fn test() {
+//     let minecraft = MinecraftLocation::new("test");
+//     println!(
+//         "{:?}",
+//         MinecraftLocation::get_natives_root()
+//     );
+// }

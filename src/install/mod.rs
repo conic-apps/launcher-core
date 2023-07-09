@@ -45,10 +45,15 @@ pub(crate) fn generate_libraries_download_list(
         .clone()
         .into_iter()
         .map(|library| Download {
-            url: format!(
-                "https://download.mcbbs.net/maven/{}",
-                library.download_info.path
-            ),
+            url: if library.is_native_library {
+                println!("find native library url: {}", &library.download_info.url);
+                library.download_info.url
+            } else {
+                format!(
+                    "https://download.mcbbs.net/maven/{}",
+                    library.download_info.path
+                )
+            },
             file: minecraft_location
                 .libraries
                 .join(library.download_info.path)

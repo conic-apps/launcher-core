@@ -374,3 +374,4 @@ pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(folder: &S) -> Result<Vec<Resolved
     }
     Ok(result)
 }
+
