@@ -18,7 +18,7 @@
 
 //! A launcher for game
 //!
-//! This module contains the [`Launcher`] [`LauncherOptions`] struct, the [`launch`] function for
+//! This module contains the [`Launcher`] [`LaunchOptions`] struct, the `launch` function for
 //! launching a game, and several error types that may result from
 //! working with [`Launcher`].
 //!
@@ -245,7 +245,7 @@ pub struct LaunchOptions {
     /// Game process priority, invalid on windows
     pub process_priority: ProcessPriority,
 
-    /// Support yushi's yggdrasil agent https://github.com/to2mbn/authlib-injector/wiki
+    /// Support yushi's yggdrasil agent <https://github.com/to2mbn/authlib-injector/wiki>
     pub yggdrasil_agent: Option<YggdrasilAgent>,
 
     pub version_id: String,

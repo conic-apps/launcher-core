@@ -172,6 +172,11 @@ impl Parse for FabricModMetadata {
     }
 }
 
+pub fn parse_mod<P: AsRef<Path>>(path: P) -> Result<ResolvedMod> {
+    let metadata = FabricModMetadata::from_path(path)?;
+    Ok(metadata.parse())
+}
+
 pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(
     folder: &S,
 ) -> Result<Vec<ResolvedMod>> {
@@ -187,7 +192,6 @@ pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(
         if path.is_dir() {
             continue;
         }
-        println!("{:?}", path);
         let raw_metadata = match FabricModMetadata::from_path(path) {
             Ok(v) => v,
             Err(_) => continue
@@ -196,6 +200,7 @@ pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(
     }
     Ok(result)
 }
+
 
 // #[test]
 // fn test() {

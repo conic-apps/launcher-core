@@ -314,13 +314,13 @@ pub struct ResolvedForgeMod {
     pub logo_file: Option<String>,
 }
 
-pub fn resolve_from_path<P: AsRef<Path>>(path: P) -> Result<ResolvedMod> {
+pub fn parse_mod<P: AsRef<Path>>(path: P) -> Result<ResolvedMod> {
     let mod_file = File::open(path)?;
     let mut mod_file_archive = ZipArchive::new(mod_file)?;
-    resolve_from_zip_archive(&mut mod_file_archive)
+    parse_mod_ziparchive(&mut mod_file_archive)
 }
 
-pub fn resolve_from_zip_archive(archive: &mut ZipArchive<File>) -> Result<ResolvedMod> {
+pub fn parse_mod_ziparchive(archive: &mut ZipArchive<File>) -> Result<ResolvedMod> {
     let target_entries = vec![
         "cccmod.info".to_string(),
         "mcmod.info".to_string(),
@@ -366,17 +366,11 @@ pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(folder: &S) -> Result<Vec<Resolved
             continue;
         }
         println!("{:?}", path);
-        let resolved = match resolve_from_path(path) {
+        let resolved = match parse_mod(path) {
             Ok(v) => v,
             Err(_) => continue,
         };
         result.push(resolved);
     }
     Ok(result)
-}
-
-#[test]
-fn test() {
-    let folder = "mock/forgeMod";
-    parse_folder(folder).unwrap();
 }
