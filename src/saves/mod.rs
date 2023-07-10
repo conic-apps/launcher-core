@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub fn parse_level_dat() {
-    
-}
+pub mod gamerule;
+pub mod player;
+pub mod level;
 
-#[test]
-fn test() {
-    
+pub struct PlayerData {
+    // todo
 }
