@@ -614,14 +614,13 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
                 },
                 is_native_library: true,
             });
-            continue;
         }
         // resolve common lib
         if library["downloads"]["artifact"].is_object() {
             result.push(ResolvedLibrary {
                 download_info: serde_json::from_value(library["downloads"]["artifact"].clone())
                     .unwrap(),
-                is_native_library: library["downloads"]["classifiers"].is_object(),
+                is_native_library: false,
             });
             continue;
         }

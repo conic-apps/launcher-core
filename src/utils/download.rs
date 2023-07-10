@@ -41,11 +41,11 @@ pub struct Download<P: AsRef<Path> + AsRef<OsStr>> {
 
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 
+// todo: 接受url列表以便轮询
 pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(
     download_task: Download<P>,
 ) -> Result<Response> {
-    // todo: 尝试从服务器获取文件大，超过5mb分片下载
-    // todo: 错误处理
+    // todo: 读取下载信息结构体中的文件大小
     let file_path = PathBuf::from(&download_task.file);
     let direction = file_path.parent().unwrap();
     if !direction.exists() {

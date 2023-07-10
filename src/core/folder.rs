@@ -40,6 +40,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// todo: resources location
+
 #[derive(Debug, Clone)]
 /// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.
 pub struct MinecraftLocation {
@@ -75,8 +77,7 @@ impl MinecraftLocation {
     }
 
     pub fn get_natives_root() -> PathBuf {
-        Path::new("/tmp/mgl-natives")
-            .join(uuid::Uuid::new_v4().to_string())
+        Path::new("/tmp/mgl-natives").join(uuid::Uuid::new_v4().to_string())
     }
 
     pub fn get_version_root<P: AsRef<Path>>(&self, version: P) -> PathBuf {
@@ -134,6 +135,10 @@ impl MinecraftLocation {
 
     pub fn get_log_config<P: AsRef<Path>>(&self, file: P) -> PathBuf {
         self.assets.join("log_configs").join(file)
+    }
+
+    pub fn get_level_file<P: AsRef<Path>>(&self, world_name: P) -> PathBuf {
+        self.saves.join(world_name).join("level.dat")
     }
 }
 
