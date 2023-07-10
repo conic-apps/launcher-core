@@ -23,4 +23,5 @@ uuid = { version = "1.4.0", features = ["v4", "fast-rng", "macro-diagnostics", ]
 num_cpus = "1.0"
 anyhow = "1.0"
 toml = "0.7.6"
+# quartz_nbt = { version = "0.2.8", features = ["serde"] }
 hematite-nbt = "0.5.2"
