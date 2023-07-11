@@ -27,7 +27,7 @@
 //! use mgl_core::core::task::TaskEventListeners;
 //! use mgl_core::install::install;
 //!  async fn fn_name() {
-//!     let listeners = TaskEventListeners::new().on_progress(Box::new(|completed, total, step| {
+//!     let listeners = TaskEventListeners::default().on_progress(Box::new(|completed, total, step| {
 //!         println!("progress: {completed}/{total}; step: {step}")
 //!     }));
 //!     install("1.19.4", MinecraftLocation::new(".minecraft"), listeners).await.unwrap();
@@ -48,7 +48,7 @@
 /// ```
 /// use mgl_core::core::task::TaskEventListeners;
 ///
-/// let listeners = TaskEventListeners::new()
+/// let listeners = TaskEventListeners::default()
 ///     .on_start(Box::new(|| {
 ///         println!("task start");
 ///     }))
@@ -64,24 +64,20 @@ pub struct TaskEventListeners {
     on_failed: Box<dyn Fn()>,
 }
 
-impl TaskEventListeners {
-    /// Create a new instance
-    pub fn new() -> Self {
+impl Default for TaskEventListeners {
+    fn default() -> Self {
         Self {
-            on_start: Box::new(|| {
-                println!("Task is startting")
-            }),
+            on_start: Box::new(|| println!("Task is startting")),
             on_progress: Box::new(|completed, total, step| {
                 println!("progress: {completed}/{total}, step: {step}")
             }),
-            on_succeed: Box::new(|| {
-                println!("Done!")
-            }),
-            on_failed: Box::new(|| {
-                println!("Error!")
-            }),
+            on_succeed: Box::new(|| println!("Done!")),
+            on_failed: Box::new(|| println!("Error!")),
         }
     }
+}
+
+impl TaskEventListeners {
     /// Register the start event listener, when the task start, the event will be triggered
     pub fn on_start(self, on_start: Box<dyn Fn()>) -> Self {
         Self { on_start, ..self }

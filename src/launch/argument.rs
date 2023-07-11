@@ -16,16 +16,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::{collections::HashMap, path::PathBuf, env::vars};
+use std::{collections::HashMap, env::vars, path::PathBuf};
 
 use anyhow::Result;
 use regex::Regex;
-use tokio::{process::Command, fs};
+use tokio::{fs, process::Command};
 use zip::ZipArchive;
 
-use crate::{core::{DELIMITER, version::ResolvedVersion, PlatformInfo, folder::MinecraftLocation, JavaExec, OsType}, utils::unzip::decompression_all};
+use crate::{
+    core::{
+        folder::MinecraftLocation, version::ResolvedVersion, JavaExec, OsType, PlatformInfo,
+        DELIMITER,
+    },
+    utils::unzip::decompression_all,
+};
 
-use super::options::{LaunchOptions, GC, UserType, ProcessPriority};
+use super::options::{LaunchOptions, ProcessPriority, UserType, GC};
 
 /// launch arguments for launch
 ///
@@ -275,7 +281,7 @@ impl LaunchArguments {
         java_exec: JavaExec,
         launch_options: LaunchOptions,
         platform: &PlatformInfo,
-    ) -> Result<Command> {
+    ) -> Result<std::process::Command> {
         let mut command = format!(
             "cd {}\n",
             launch_options.version_root.to_string_lossy().to_string()
@@ -350,7 +356,7 @@ impl LaunchArguments {
                         .unwrap(),
                 );
 
-                Command::new(
+                std::process::Command::new(
                     powershell_folder
                         .join("powershell.exe")
                         .to_string_lossy()
@@ -361,7 +367,7 @@ impl LaunchArguments {
                 let mut chmod = Command::new("chmod");
                 chmod.args(&["+x", script_path.to_string_lossy().to_string().as_ref()]);
                 chmod.status().await?;
-                Command::new("bash")
+                std::process::Command::new("bash")
             }
         };
         command.arg(script_path);
