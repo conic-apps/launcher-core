@@ -35,6 +35,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "aml_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deflate",
+ "futures",
+ "hematite-nbt",
+ "num_cpus",
+ "once_cell",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha1 0.6.1",
+ "tokio",
+ "toml",
+ "uuid",
+ "zip",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -687,27 +708,6 @@ name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
-
-[[package]]
-name = "mgl_core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "deflate",
- "futures",
- "hematite-nbt",
- "num_cpus",
- "once_cell",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "sha1 0.6.1",
- "tokio",
- "toml",
- "uuid",
- "zip",
-]
 
 [[package]]
 name = "mime"

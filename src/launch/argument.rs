@@ -1,5 +1,5 @@
 /*
- * Magical Launcher Core
+ * Amethyst Launcher Core
  * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
  *
  * This program is free software, you can redistribute it and/or modify
@@ -395,8 +395,8 @@ fn resolve_classpath(
                     }
                 }
             }
-            true
-            // !lib.is_native_library
+            // true
+            !lib.is_native_library
         })
         .map(|lib| {
             minecraft

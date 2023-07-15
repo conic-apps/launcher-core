@@ -1,5 +1,5 @@
 /*
- * Magical Launcher Core
+ * Amethyst Launcher Core
  * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
  *
  * This program is free software, you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 use std::{
     fs::File,
     io::{self, Read},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
     thread,
     time::Duration,
@@ -27,15 +27,25 @@ use std::{
 
 use anyhow::Result;
 use reqwest::Response;
+use tokio::fs;
 use zip::ZipArchive;
 
 use crate::{
-    core::{folder::MinecraftLocation, version::LibraryDownload},
-    install::forge::{
-        install_profile::{InstallProfile, InstallProfileLegacy},
-        legacy_install::install_legacy_forge_from_zip,
-        new_install::unpack_forge_installer,
+    core::{
+        folder::MinecraftLocation,
+        task::TaskEventListeners,
+        version::{LibraryDownload, Version},
+        JavaExec, PlatformInfo,
     },
+    install::{
+        forge::{
+            install_profile::{InstallProfile, InstallProfileLegacy},
+            legacy_install::install_legacy_forge_from_zip,
+            new_install::unpack_forge_installer,
+        },
+        install_dependencies,
+    },
+    launch::{launch::Launcher, options::LaunchOptions},
     utils::{
         download::{download, Download},
         unzip::filter_entries,
@@ -82,7 +92,8 @@ async fn download_forge_installer(
     let file_path = minecraft
         .get_library_by_path(&library.path)
         .to_str()
-        .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?
+        .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))
+        .unwrap()
         .to_string();
     let response = download(Download {
         url: library.url,
@@ -90,7 +101,7 @@ async fn download_forge_installer(
         sha1: None,
     })
     .await;
-    Ok((file_path, response?))
+    Ok((file_path, response.unwrap()))
 }
 
 async fn walk_forge_installer_entries<R: Read + io::Seek>(
@@ -147,7 +158,7 @@ pub async fn install_forge(
 ) -> Result<()> {
     let mcversion: Vec<_> = version.mcversion.split(".").collect();
     let minor = *mcversion.get(1).unwrap();
-    let minor_version = minor.parse::<i32>()?;
+    let minor_version = minor.parse::<i32>().unwrap();
 
     let forge_version = if minor_version >= 7 && minor_version <= 8 {
         format!(
@@ -159,17 +170,32 @@ pub async fn install_forge(
     };
 
     let (installer_jar_path, _installer_jar) =
-        download_forge_installer(&forge_version, version, &minecraft, &options).await?;
+        download_forge_installer(&forge_version, version, &minecraft, &options)
+            .await
+            .unwrap();
     println!("{}", installer_jar_path);
+
+    let file = Path::new(&installer_jar_path);
+    if file.exists() {
+        let file_size = std::fs::metadata(file)?.len();
+        if file_size == 0 {
+            eprintln!("ZIP file is empty");
+            return Err(anyhow::anyhow!(""));
+        }
+    } else {
+        eprintln!("ZIP file does not exist");
+        return Err(anyhow::anyhow!(""));
+    }
+
     thread::sleep(Duration::from_secs(1));
-    let installer_jar = ZipArchive::new(File::open(&installer_jar_path)?)?;
+    let installer_jar = ZipArchive::new(File::open(&installer_jar_path).unwrap()).unwrap();
 
     let entries = walk_forge_installer_entries(installer_jar, &forge_version).await;
-    let mut installer_jar = ZipArchive::new(File::open(&installer_jar_path)?)?;
+    let mut installer_jar = ZipArchive::new(File::open(&installer_jar_path).unwrap()).unwrap();
 
     let install_profile_json = match &entries.install_profile_json {
         None => panic!("Bad forge installer jar!"),
-        Some(data) => String::from_utf8(data.content.clone())?,
+        Some(data) => String::from_utf8(data.content.clone()).unwrap(),
     };
     println!("{}", install_profile_json);
     let forge_type = if let Some(_) = &entries.install_profile_json {
@@ -185,32 +211,82 @@ pub async fn install_forge(
     };
     match forge_type {
         ForgeType::New => {
-            let profile: InstallProfile = serde_json::from_str(&install_profile_json)?;
+            let profile: InstallProfile = serde_json::from_str(&install_profile_json).unwrap();
             let _version_id = unpack_forge_installer(
                 &mut installer_jar,
                 entries,
                 &forge_version,
                 minecraft,
-                PathBuf::from_str((&installer_jar_path).as_ref())?,
+                PathBuf::from_str((&installer_jar_path).as_ref()).unwrap(),
                 profile,
                 options,
             )
             .await;
         }
         ForgeType::Legacy => {
-            let profile: InstallProfileLegacy = serde_json::from_str(&install_profile_json)?;
+            let profile: InstallProfileLegacy =
+                serde_json::from_str(&install_profile_json).unwrap();
             let entries = ForgeLegacyInstallerEntriesPatten {
                 install_profile_json: entries
                     .install_profile_json
-                    .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
+                    .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))
+                    .unwrap(),
                 legacy_universal_jar: entries
                     .legacy_universal_jar
-                    .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
+                    .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))
+                    .unwrap(),
             };
-            install_legacy_forge_from_zip(entries, profile, minecraft, options).await?;
+            install_legacy_forge_from_zip(entries, profile, minecraft, options)
+                .await
+                .unwrap();
         }
         ForgeType::Bad => panic!("Bad forge installer jar!"),
     }
 
     Ok(())
+}
+
+#[tokio::test]
+async fn test() {
+    //     install_forge(version::RequiredVersion { mcversion: "1.12.2".to_string(), version: "1.12.2".to_string(), minecraft, options)
+
+    // let required_version = RequiredVersion {
+    //     mcversion: "1.20.1".to_string(),
+    //     version: "47.1.0".to_string(),
+    //     installer: None,
+    // };
+    // let minecraft = MinecraftLocation::new("test");
+    // install_forge(required_version, minecraft, None).await.unwrap();
+    // let minecraft = MinecraftLocation::new("test");
+    // let version_file = fs::read_to_string(minecraft.get_version_json("1.20.1-forge-47.1.0"))
+    //     .await
+    //     .unwrap();
+    // let version = Version::from_str(&version_file)
+    //     .unwrap()
+    //     .parse(&minecraft, &PlatformInfo::new().await)
+    //     .await
+    //     .unwrap();
+    // println!("{}", serde_json::to_string(&version).unwrap());
+    // install_dependencies(version, minecraft, TaskEventListeners::default()).await.unwrap();
+    let minecraft = MinecraftLocation::new("test");
+    let launch_options = LaunchOptions::new("1.20.1-forge-47.1.0", minecraft)
+        .await
+        .unwrap();
+    let mut launcher = Launcher::from_options(
+        launch_options,
+        JavaExec::new("/usr/lib64/jvm/java-17-openjdk-17/").await,
+    );
+    launcher
+        .launch(
+            None,
+            Some(Box::new(|v| {
+                println!("new stdout: {}", v);
+            })),
+            Some(Box::new(|v| {
+                println!("new stderr: {}", v);
+            })),
+            None,
+        )
+        .await
+        .unwrap();
 }

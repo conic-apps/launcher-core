@@ -1,5 +1,5 @@
 /*
- * Magical Launcher Core
+ * Amethyst Launcher Core
  * Copyright (C) 2023 Broken-Deer <old_driver__@outlook.com> and contributors
  *
  * This program is free software, you can redistribute it and/or modify
@@ -141,7 +141,7 @@ pub struct AssetIndexObjectInfo {
 // #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub type AssetIndexObject = HashMap<String, AssetIndexObjectInfo>;
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct LibraryDownload {
     pub sha1: String,
     pub size: u64,
@@ -253,7 +253,7 @@ pub struct JavaVersion {
 ///
 /// Use `new` to parse a Minecraft version json, and see the detail info of the version,
 /// equivalent to `crate::core::version::Version::parse`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ResolvedVersion {
     /// The id of the version, should be identical to the version folder.
     pub id: String,
@@ -443,12 +443,7 @@ impl Version {
         let mut version_type = "".to_string();
         let mut logging = HashMap::new();
         let mut main_class = "".to_string();
-        let mut assets_index = AssetIndex {
-            size: 0,
-            url: "".to_string(),
-            id: "".to_string(),
-            total_size: 0,
-        };
+        let mut asset_index = None;
         let mut java_version = JavaVersion {
             component: "jre-legacy".to_string(),
             major_version: 8,
@@ -479,7 +474,10 @@ impl Version {
             assets = version.assets.unwrap_or(assets);
             version_type = version.r#type.unwrap_or(version_type);
             main_class = version.main_class.unwrap_or(main_class);
-            assets_index = version.asset_index.unwrap_or(assets_index);
+            asset_index = match version.asset_index {
+                Some(asset_index) => Some(asset_index),
+                None => asset_index,
+            };
             java_version = version.java_version.unwrap_or(java_version);
 
             if let Some(mut libraries) = version.libraries {
@@ -489,8 +487,8 @@ impl Version {
         }
 
         if main_class == ""
-            || assets_index
-                == (AssetIndex {
+            || asset_index
+                == Some(AssetIndex {
                     size: 0,
                     url: "".to_string(),
                     id: "".to_string(),
@@ -509,7 +507,7 @@ impl Version {
                 // jvm: resolve_arguments(jvm_args, platform).await,
             }),
             main_class,
-            asset_index: self.asset_index.clone(),
+            asset_index,
             assets: self.assets.clone().unwrap_or("".to_string()),
             downloads: self.downloads.clone(),
             libraries: resolve_libraries(libraries_raw, platform).await,
@@ -529,13 +527,13 @@ impl Version {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ResolvedArguments {
     pub game: Vec<String>,
     pub jvm: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ResolvedLibrary {
     pub download_info: LibraryDownload,
     pub is_native_library: bool,

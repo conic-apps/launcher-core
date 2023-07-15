@@ -1,5 +1,5 @@
 [package]
-name = "mgl_core"
+name = "aml_core"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-only"
