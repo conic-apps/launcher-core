@@ -157,7 +157,7 @@ impl PlatformInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct JavaExec {
     pub binary: PathBuf,
     // pub version: String,

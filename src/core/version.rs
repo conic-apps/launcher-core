@@ -83,13 +83,13 @@ static DEFAULT_JVM_ARGS: Lazy<Vec<String>> = Lazy::new(|| {
     ]
 });
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct LatestVersion {
     pub release: String,
     pub snapshot: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionInfo {
     pub id: String,
@@ -101,7 +101,7 @@ pub struct VersionInfo {
     pub compliance_level: u8,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct VersionManifest {
     pub latest: LatestVersion,
     pub versions: Vec<VersionInfo>,
@@ -132,7 +132,7 @@ pub struct AssetIndex {
     pub total_size: u64,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct AssetIndexObjectInfo {
     pub hash: String,
     pub size: u32,
@@ -149,32 +149,32 @@ pub struct LibraryDownload {
     pub path: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct LoggingFile {
     pub size: u64,
     pub url: String,
     pub id: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct NormalLibrary {
     pub name: String,
     pub downloads: HashMap<String, LibraryDownload>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Rule {
     pub action: String,
     pub os: Option<Platform>,
     pub features: Option<HashMap<String, bool>>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Extract {
     pub exclude: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct NativeLibrary {
     pub name: String,
     pub downloads: HashMap<String, LibraryDownload>,
@@ -184,14 +184,14 @@ pub struct NativeLibrary {
     pub natives: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PlatformSpecificLibrary {
     pub name: String,
     pub downloads: HashMap<String, LibraryDownload>,
     pub rules: Vec<Rule>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct LegacyLibrary {
     pub name: String,
     pub url: Option<String>,
@@ -200,7 +200,7 @@ pub struct LegacyLibrary {
     pub checksums: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub enum Library {
     Normal(NormalLibrary),
     Native(NativeLibrary),
@@ -208,13 +208,13 @@ pub enum Library {
     Legacy(LegacyLibrary),
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub enum LaunchArgument {
     String(String),
     Object(serde_json::map::Map<String, Value>),
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Platform {
     pub name: String,
     pub version: Option<String>,

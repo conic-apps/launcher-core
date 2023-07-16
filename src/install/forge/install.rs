@@ -27,25 +27,15 @@ use std::{
 
 use anyhow::Result;
 use reqwest::Response;
-use tokio::fs;
 use zip::ZipArchive;
 
 use crate::{
-    core::{
-        folder::MinecraftLocation,
-        task::TaskEventListeners,
-        version::{LibraryDownload, Version},
-        JavaExec, PlatformInfo,
+    core::{folder::MinecraftLocation, version::LibraryDownload},
+    install::forge::{
+        install_profile::{InstallProfile, InstallProfileLegacy},
+        legacy_install::install_legacy_forge_from_zip,
+        new_install::unpack_forge_installer,
     },
-    install::{
-        forge::{
-            install_profile::{InstallProfile, InstallProfileLegacy},
-            legacy_install::install_legacy_forge_from_zip,
-            new_install::unpack_forge_installer,
-        },
-        install_dependencies,
-    },
-    launch::{launch::Launcher, options::LaunchOptions},
     utils::{
         download::{download, Download},
         unzip::filter_entries,
@@ -244,49 +234,4 @@ pub async fn install_forge(
     }
 
     Ok(())
-}
-
-#[tokio::test]
-async fn test() {
-    //     install_forge(version::RequiredVersion { mcversion: "1.12.2".to_string(), version: "1.12.2".to_string(), minecraft, options)
-
-    // let required_version = RequiredVersion {
-    //     mcversion: "1.20.1".to_string(),
-    //     version: "47.1.0".to_string(),
-    //     installer: None,
-    // };
-    // let minecraft = MinecraftLocation::new("test");
-    // install_forge(required_version, minecraft, None).await.unwrap();
-    // let minecraft = MinecraftLocation::new("test");
-    // let version_file = fs::read_to_string(minecraft.get_version_json("1.20.1-forge-47.1.0"))
-    //     .await
-    //     .unwrap();
-    // let version = Version::from_str(&version_file)
-    //     .unwrap()
-    //     .parse(&minecraft, &PlatformInfo::new().await)
-    //     .await
-    //     .unwrap();
-    // println!("{}", serde_json::to_string(&version).unwrap());
-    // install_dependencies(version, minecraft, TaskEventListeners::default()).await.unwrap();
-    let minecraft = MinecraftLocation::new("test");
-    let launch_options = LaunchOptions::new("1.20.1-forge-47.1.0", minecraft)
-        .await
-        .unwrap();
-    let mut launcher = Launcher::from_options(
-        launch_options,
-        JavaExec::new("/usr/lib64/jvm/java-17-openjdk-17/").await,
-    );
-    launcher
-        .launch(
-            None,
-            Some(Box::new(|v| {
-                println!("new stdout: {}", v);
-            })),
-            Some(Box::new(|v| {
-                println!("new stderr: {}", v);
-            })),
-            None,
-        )
-        .await
-        .unwrap();
 }

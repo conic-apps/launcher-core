@@ -22,7 +22,7 @@ use serde_json::Value;
 pub mod install;
 pub mod version_list;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FabricArtifactVersion {
     pub game_version: Option<String>,
@@ -47,7 +47,7 @@ pub struct FabricArtifactVersion {
 ///     println!("{:#?}", artifacts);
 /// }
 /// ```
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FabricArtifacts {
     pub mappings: Vec<FabricArtifactVersion>,
     pub loader: Vec<FabricArtifactVersion>,
@@ -67,7 +67,7 @@ pub struct FabricArtifacts {
 ///     println!("{:#?}", artifact);
 /// }
 /// ```
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FabricLoaderArtifact {
     pub loader: FabricArtifactVersion,
@@ -89,7 +89,7 @@ pub struct FabricLoaderArtifact {
 ///     println!("{:#?}", artifacts);
 /// }
 /// ```
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct YarnArtifactList(Vec<FabricArtifactVersion>);
 
@@ -107,11 +107,11 @@ pub struct YarnArtifactList(Vec<FabricArtifactVersion>);
 ///     println!("{:#?}", artifacts);
 /// }
 /// ```
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LoaderArtifactList(Vec<FabricArtifactVersion>);
+pub struct LoaderArtifactList(Vec<FabricLoaderArtifact>);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LauncherMeta {
     pub version: usize,
@@ -119,7 +119,7 @@ pub struct LauncherMeta {
     pub main_class: Value,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct LauncherMetaLibraries {
     pub client: Vec<LauncherMetaLibrariesItems>,
     pub common: Vec<LauncherMetaLibrariesItems>,
