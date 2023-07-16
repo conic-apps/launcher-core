@@ -32,3 +32,53 @@ pub struct QuiltArtifactVersion {
     maven: String,
     version: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuiltVersionHashed {
+    pub maven: String,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuiltVersionIntermediary {
+    pub maven: String,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuiltLibrary {
+    pub name: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuiltLibraries {
+    pub client: Vec<QuiltLibrary>,
+    pub common: Vec<QuiltLibrary>,
+    pub server: Vec<QuiltLibrary>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuiltLauncherMeta {
+    pub version: u32,
+    pub libraries: QuiltLibraries,
+    pub main_class: QuiltMainClass
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuiltMainClass {
+    pub client: Option<String>,
+    pub server: Option<String>,
+    pub server_launcher: Option<String>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuiltVersion {
+    pub loader: QuiltArtifactVersion,
+    pub hashed: QuiltVersionHashed,
+    pub intermediary: QuiltVersionIntermediary,
+    pub launcher_meta: QuiltLauncherMeta
+}

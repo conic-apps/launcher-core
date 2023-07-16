@@ -16,26 +16,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use super::{DEFAULT_META_URL, QuiltArtifactVersion};
+use anyhow::Result;
 
-pub async fn get_quilt_version_list(remote: Option<String>) -> Vec<QuiltArtifactVersion> {
+use super::{QuiltArtifactVersion, QuiltVersion, DEFAULT_META_URL};
+
+pub async fn get_quilt_version_list(remote: Option<String>) -> Result<Vec<QuiltArtifactVersion>> {
     let remote = match remote {
         None => DEFAULT_META_URL.to_string(),
         Some(remote) => remote,
     };
     let url = format!("{remote}/v3/versions/loader");
-    let response = reqwest::get(url).await.unwrap();
-    response.json().await.unwrap()
+    let response = reqwest::get(url).await?;
+    Ok(response.json().await?)
 }
 
-#[tokio::test]
-async fn test() {
-    let version_list = get_quilt_version_list(None).await;
-    println!("{:#?}", version_list);
-}
-
-#[tokio::test]
-async fn test1() {
-    let version_list = get_quilt_version_list(Some("https://meta.quiltmc.org".to_string())).await;
-    println!("{:#?}", version_list);
+pub async fn get_quilt_version_list_from_mcversion(
+    remote: Option<String>,
+    mcversion: &str,
+) -> Result<Vec<QuiltVersion>> {
+    let remote = match remote {
+        None => DEFAULT_META_URL.to_string(),
+        Some(remote) => remote,
+    };
+    let url = format!("{remote}/v3/versions/loader/{mcversion}");
+    let response = reqwest::get(url).await?;
+    Ok(response.json().await?)
 }

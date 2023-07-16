@@ -16,79 +16,75 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use anyhow::Result;
+
 use super::*;
 
 impl FabricArtifacts {
     /// get fabric artifacts
-    pub async fn new() -> Self {
-        reqwest::get("https://meta.fabricmc.net/v2/versions")
-            .await
-            .unwrap()
+    pub async fn new() -> Result<Self> {
+        Ok(reqwest::get("https://meta.fabricmc.net/v2/versions")
+            .await?
             .json()
-            .await
-            .unwrap()
+            .await?)
     }
 }
 
 impl YarnArtifactList {
     /// get yarn artifacts
-    pub async fn new() -> Self {
-        reqwest::get("https://meta.fabricmc.net/v2/versions/yarn")
-            .await
-            .unwrap()
+    pub async fn new() -> Result<Self> {
+        Ok(reqwest::get("https://meta.fabricmc.net/v2/versions/yarn")
+            .await?
             .json()
-            .await
-            .unwrap()
+            .await?)
     }
     /// get the yarn of the specified minecraft version
-    pub async fn from_mcversion(mcversion: &str) -> Self {
-        reqwest::get(format!(
+    pub async fn from_mcversion(mcversion: &str) -> Result<Self> {
+        Ok(reqwest::get(format!(
             "https://meta.fabricmc.net/v2/versions/yarn/{}",
             mcversion
         ))
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap()
+        .await?
+        .json()
+        .await?)
     }
 }
 
 impl LoaderArtifactList {
     /// get loader artifacts
-    pub async fn new() -> Self {
-        reqwest::get("https://meta.fabricmc.net/v2/versions/loader")
-            .await
-            .unwrap()
+    pub async fn new() -> Result<Self> {
+        Ok(reqwest::get("https://meta.fabricmc.net/v2/versions/loader")
+            .await?
             .json()
-            .await
-            .unwrap()
+            .await?)
     }
     /// get the loader of the specified minecraft version
-    pub async fn from_mcversion(mcversion: &str) -> Self {
-        reqwest::get(format!(
+    pub async fn from_mcversion(mcversion: &str) -> Result<Self> {
+        Ok(reqwest::get(format!(
             "https://meta.fabricmc.net/v2/versions/loader/{}",
             mcversion
         ))
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap()
+        .await?
+        .json()
+        .await?)
     }
+}
+
+#[tokio::test]
+async fn test() {
+    let a = LoaderArtifactList::from_mcversion("1.20.1").await.unwrap();
+    println!("{:#?}", a);
 }
 
 impl FabricLoaderArtifact {
     /// get fabric loader artifact
-    pub async fn new(mcversion: &str, loader: &str) -> Self {
-        reqwest::get(format!(
+    pub async fn new(mcversion: &str, loader: &str) -> Result<Self> {
+        Ok(reqwest::get(format!(
             "https://meta.fabricmc.net/v2/versions/loader/{}/{}",
             mcversion, loader
         ))
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap()
+        .await?
+        .json()
+        .await?)
     }
 }
