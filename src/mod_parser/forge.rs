@@ -16,11 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::ffi::OsStr;
+use std::{ffi::OsStr, io::Read};
 use std::fs::File;
 use std::path::Path;
 
 use anyhow::Result;
+use base64::Engine;
+use base64::engine::general_purpose;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -329,7 +331,7 @@ pub fn parse_mod_ziparchive(archive: &mut ZipArchive<File>) -> Result<ResolvedMo
         "META-INF/MANIFEST.MF".to_string(),
     ];
     let entries = filter_entries(archive, &target_entries);
-    let result = if let Some(entry) = entries.get("mcmod.info") {
+    let mut result = if let Some(entry) = entries.get("mcmod.info") {
         let file_content = String::from_utf8(entry.content.clone())?;
         ForgeModMcmodInfo::from_info_file(&file_content)?.parse()
     } else if let Some(entry) = entries.get("neimod.info") {
@@ -348,6 +350,15 @@ pub fn parse_mod_ziparchive(archive: &mut ZipArchive<File>) -> Result<ResolvedMo
         return Err(anyhow::Error::new(std::io::Error::from(
             std::io::ErrorKind::NotFound,
         )));
+    };
+    fn parse_icon(archive: &mut ZipArchive<File>, icon_path: String) -> Result<String> {
+        let mut buf = Vec::new();
+        archive.by_name(&icon_path)?.read_to_end(&mut buf)?;
+        Ok(format!("data:image/png;base64,{}", general_purpose::STANDARD_NO_PAD.encode(buf)))
+    }
+    result.icon = match result.icon {
+        None => None,
+        Some(icon_path) => Some(parse_icon(archive, icon_path)?),
     };
     Ok(result)
 }

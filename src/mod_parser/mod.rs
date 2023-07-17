@@ -59,7 +59,7 @@ pub trait Parse {
     fn parse(self) -> ResolvedMod;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ResolvedMod {
     pub name: String,
     pub description: Option<String>,
@@ -70,14 +70,14 @@ pub struct ResolvedMod {
     pub icon: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ResolvedDepends {
     pub minecraft: Option<Value>,
     pub java: Option<Value>,
     pub mod_loader: Option<Value>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ResolvedAuthorInfo {
     pub name: String,
     pub contact: Option<HashMap<String, String>>,
