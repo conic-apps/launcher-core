@@ -18,15 +18,17 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use futures::StreamExt;
+use futures::{stream, StreamExt};
 use once_cell::sync::Lazy;
 use reqwest::{Client, Response};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc;
 
 use crate::core::task::TaskEventListeners;
 
@@ -42,6 +44,7 @@ pub struct Download<P: AsRef<Path> + AsRef<OsStr>> {
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 
 // todo: 接受url列表以便轮询
+// todo: 测试是不是只要把on_progress包在Arc和Mutex里就可以，不需要thread safe版本的实现
 pub async fn download<P: AsRef<Path> + AsRef<OsStr>>(
     download_task: Download<P>,
 ) -> Result<Response> {
@@ -115,7 +118,6 @@ pub async fn download_files(
         .for_each_concurrent(1, |_| async {
             let completed = counter.clone().load(Ordering::SeqCst);
             listeners.progress(completed, total, 2);
-            //println!("{completed}/{total}");
         })
         .await;
 

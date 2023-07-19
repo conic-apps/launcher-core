@@ -129,15 +129,10 @@ pub async fn install_dependencies(
     Ok(())
 }
 
-/// Quick game install
-///
-/// Note: This operation does not ensure that all files are complete,
-/// please execute the [`install_dependencies`] function before the first startup
-pub async fn install(
+pub async fn generate_download_list(
     version_id: &str,
     minecraft_location: MinecraftLocation,
-    listeners: TaskEventListeners,
-) -> Result<()> {
+) -> Result<Vec<Download<String>>> {
     let platform = PlatformInfo::new().await;
 
     let versions = VersionManifest::new().await?.versions;
@@ -184,40 +179,19 @@ pub async fn install(
         )
         .await?,
     );
-
-    download_files(download_list, listeners, false).await?;
-    Ok(())
+    Ok(download_list)
 }
 
-// #[tokio::test]
-// async fn test() {
-//     let a = Box::new(|completed, total, step| {
-//         println!("progress: {completed}/{total}  step: {step}");
-//     });
-//     let cb = TaskEventListeners::new().on_progress(a);
-//     install("1.20.1", MinecraftLocation::new("test"), cb).await;
-//     // let minecraft_location = MinecraftLocation::new("test");
-//     // let raw = read_to_string(minecraft_location.versions.clone().join("1.20").join("1.20.json")).unwrap();
-//     // let version = crate::core::version::Version::from_str(&raw).unwrap().parse(minecraft_location.clone());
-//     // install_dependencies(version, a, minecraft_location.clone()).await;
-//     // c.task.await;
-// }
-
-// #[tokio::test]
-// async fn install_all_test() {
-//     let versions = VersionManifest::new()
-//         .await
-//         .unwrap()
-//         .versions
-//         .iter()
-//         .filter(|v| v.r#type != "snapshot")
-//         .map(|v| v.id.clone())
-//         .collect::<Vec<String>>();
-//     println!("versions: {}", versions.len());
-//     for version_id in versions {
-//         println!("installing {version_id}");
-//         let listeners = TaskEventListeners::new();
-//         install(&version_id, MinecraftLocation::new("test"), listeners).await.unwrap();
-//     }
-// }
-
+/// Quick game install
+///
+/// Note: This operation does not ensure that all files are complete,
+/// please execute the [`install_dependencies`] function before the first startup
+pub async fn install(
+    version_id: &str,
+    minecraft_location: MinecraftLocation,
+    listeners: TaskEventListeners,
+) -> Result<()> {
+    let downlaod_list = generate_download_list(version_id, minecraft_location).await?;
+    download_files(downlaod_list, listeners, false).await?;
+    Ok(())
+}
