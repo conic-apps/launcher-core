@@ -39,6 +39,16 @@ pub mod forge;
 pub mod optifine;
 pub mod quilt;
 
+/// todo
+pub struct NetworkOptions {
+    pub use_proxy: bool,
+    pub minecraft_remote: String,
+    pub forge_remote: String,
+    pub fabric_remote: String,
+    pub optifine_remote: String,
+    pub quilt_remote: String,
+}
+
 pub(crate) fn generate_libraries_download_list(
     libraries: Vec<ResolvedLibrary>,
     minecraft_location: &MinecraftLocation,
@@ -188,12 +198,41 @@ pub async fn generate_download_list(
 ///
 /// Note: This operation does not ensure that all files are complete,
 /// please execute the [`install_dependencies`] function before the first startup
-pub async fn install(
+pub async fn install_vanilla_game(
+    minecraft_version: &str,
+    minecraft_location: MinecraftLocation,
+    listeners: TaskEventListeners,
+) -> Result<()> {
+    let downlaod_list = generate_download_list(minecraft_version, minecraft_location).await?;
+    download_files(downlaod_list, listeners, false).await?;
+    Ok(())
+}
+
+/// Quick game install dependencies
+///
+/// Used to supplement libraries that were not downloaded after installing Forge.
+///
+/// Note: This operation does not ensure that all files are complete,
+/// please execute the [`install_dependencies`] function before the first startup
+pub async fn quick_install_dependencies(
     version_id: &str,
     minecraft_location: MinecraftLocation,
     listeners: TaskEventListeners,
 ) -> Result<()> {
-    let downlaod_list = generate_download_list(version_id, minecraft_location).await?;
-    download_files(downlaod_list, listeners, false).await?;
+    let platform = PlatformInfo::new().await;
+    let raw_version_path = minecraft_location.get_version_json(version_id);
+    let raw_version_content = tokio::fs::read_to_string(raw_version_path)   .await?;
+    let raw_version = version::Version::from_str(&raw_version_content)?;
+    let version = raw_version.parse(&minecraft_location, &platform).await?;
+    let mut download_list = Vec::new();
+
+    download_list.extend(generate_libraries_download_list(
+        version.libraries,
+        &minecraft_location,
+    ));
+    download_list.extend(
+        generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await?,
+    );
+    download_files(download_list, listeners, false).await?;
     Ok(())
 }

@@ -650,28 +650,24 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
             });
             continue;
         }
+        // resolve mod loader
         let name = library["name"].as_str();
         if name == None {
             continue;
         }
-
-        // resolve forge
-
         let name: Vec<&str> = name.unwrap().split(":").collect();
         if name.len() != 3 {
             continue;
         }
-
         let package = name.get(0).unwrap().replace(".", "/");
         let version = name.get(2).unwrap();
         let name = name.get(1).unwrap();
 
-        let url;
-        if let Some(url_) = library["url"].as_str() {
-            url = url_;
+        let url = if let Some(url) = library["url"].as_str() {
+            url
         } else {
-            url = "http://files.minecraftforge.net/maven/"
-        }
+            "https://libraries.minecraft.net/"
+        };
         let path = format!("{package}/{name}/{version}/{name}-{version}.jar");
         result.push(ResolvedLibrary {
             download_info: LibraryDownload {

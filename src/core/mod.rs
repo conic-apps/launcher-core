@@ -72,6 +72,9 @@ pub mod folder;
 pub mod task;
 pub mod version;
 
+/// May not actually be used
+pub static DEFAULT_LAUNCHER_PROFILE: &[u8] = include_bytes!("./launcher_profile.json");
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub(crate) enum OsType {
     Windows,
