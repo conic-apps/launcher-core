@@ -40,7 +40,7 @@ pub(super) async fn install_legacy_forge_from_zip(
         },
     };
     let mut version_json = profile.version_info.unwrap();
-
+    
     // apply override for inheritsFrom
     version_json.id = options.version_id.unwrap_or(version_json.id);
     version_json.inherits_from = match options.inherits_from {

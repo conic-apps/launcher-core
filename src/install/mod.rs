@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::str::FromStr;
+
 use anyhow::Result;
 use reqwest::Url;
 use serde_json::Value;

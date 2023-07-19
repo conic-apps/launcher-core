@@ -18,17 +18,15 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::Result;
-use futures::{stream, StreamExt};
+use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reqwest::{Client, Response};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc;
 
 use crate::core::task::TaskEventListeners;
 

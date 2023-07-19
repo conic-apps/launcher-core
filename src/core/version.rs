@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
+use std::{collections::HashMap, fs::read_to_string, path::PathBuf, str::FromStr};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
@@ -249,6 +249,49 @@ pub struct JavaVersion {
     pub major_version: i32,
 }
 
+/// Minecraft Version
+///
+/// It used to compare the version of the game
+#[derive(Debug, Clone, Serialize)]
+pub enum MinecraftVersion {
+    Release(u8, u8, u8),
+    Snapshot(u8, u8, String),
+    Unknown(String),
+}
+
+impl FromStr for MinecraftVersion {
+    type Err = ();
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match parse_version(s) {
+            Ok(x) => Ok(x),
+            Err(_) => Err(()),
+        }
+    }
+}
+
+fn parse_version(s: &str) -> Result<MinecraftVersion> {
+    match s {
+        "." => {
+            let split = s.split(".").collect::<Vec<&str>>();
+            Ok(MinecraftVersion::Release(
+                split.get(0).ok_or(anyhow::anyhow!(""))?.parse()?,
+                split.get(1).ok_or(anyhow::anyhow!(""))?.parse()?,
+                split.get(2).ok_or(anyhow::anyhow!(""))?.parse()?,
+            ))
+        }
+        "w" => {
+            let split = s.split("w").collect::<Vec<&str>>();
+            let minor_version = split.get(1).ok_or(anyhow::anyhow!(""))?;
+            Ok(MinecraftVersion::Snapshot(
+                split.get(0).ok_or(anyhow::anyhow!(""))?.parse()?,
+                (&minor_version[..2]).parse()?,
+                (&minor_version[2..]).to_string(),
+            ))
+        }
+        _ => Ok(MinecraftVersion::Unknown(s.to_string())),
+    }
+}
+
 /// Resolved version.json
 ///
 /// Use `new` to parse a Minecraft version json, and see the detail info of the version,
@@ -257,6 +300,7 @@ pub struct JavaVersion {
 pub struct ResolvedVersion {
     /// The id of the version, should be identical to the version folder.
     pub id: String,
+    pub minecraft_version: MinecraftVersion,
     pub arguments: Option<ResolvedArguments>,
 
     /// The main class full qualified name.
@@ -275,9 +319,6 @@ pub struct ResolvedVersion {
 
     /// Recommended java version.
     pub java_version: JavaVersion,
-
-    /// The minecraft version of this version.
-    pub minecraft_version: String,
 
     /// The version inheritances of this whole resolved version.
     ///
@@ -371,6 +412,13 @@ pub struct Version {
     pub client_version: Option<String>,
 }
 
+impl FromStr for Version {
+    type Err = serde_json::Error;
+    fn from_str(raw: &str) -> Result<Version, serde_json::Error> {
+        serde_json::from_str(raw)
+    }
+}
+
 impl Version {
     pub fn from_value(raw: Value) -> Result<Version, serde_json::Error> {
         serde_json::from_value(raw)
@@ -388,10 +436,6 @@ impl Version {
         let raw = read_to_string(path)?;
         let version: Version = serde_json::from_str((&raw).as_ref())?;
         Ok(version)
-    }
-
-    pub fn from_str(raw: &str) -> Result<Version, serde_json::Error> {
-        serde_json::from_str(raw)
     }
 
     /// parse a Minecraft version json
@@ -422,20 +466,7 @@ impl Version {
 
         let mut assets = "".to_string();
         let mut minimum_launcher_version = 0;
-        // let game_args = match self.arguments.clone() {
-        //     None => DEFAULT_GAME_ARGS.clone(),
-        //     Some(v) => match v.game {
-        //         None => DEFAULT_GAME_ARGS.clone(),
-        //         Some(v) => v,
-        //     },
-        // };
-        // let jvm_args = match self.arguments.clone() {
-        //     None => DEFAULT_JVM_ARGS.clone(),
-        //     Some(v) => match v.jvm {
-        //         None => DEFAULT_JVM_ARGS.clone(),
-        //         Some(v) => v,
-        //     },
-        // };
+
         let game_args = DEFAULT_GAME_ARGS.clone();
         let jvm_args = DEFAULT_JVM_ARGS.clone();
         let mut release_time = "".to_string();
@@ -459,15 +490,6 @@ impl Version {
                 minimum_launcher_version,
             );
 
-            // if let Some(arguments) = version.arguments {
-            //     if let Some(mut game) = arguments.game {
-            //         game_args.append(&mut game);
-            //     }
-            //     if let Some(mut jvm) = arguments.jvm {
-            //         jvm_args.append(&mut jvm);
-            //     }
-            // }
-
             release_time = version.release_time.unwrap_or(release_time);
             time = version.time.unwrap_or(time);
             logging = version.logging.unwrap_or(logging);
@@ -483,7 +505,10 @@ impl Version {
             if let Some(mut libraries) = version.libraries {
                 libraries_raw.append(&mut libraries);
             }
-            downloads = version.downloads.unwrap_or(downloads);
+            match version.downloads {
+                Some(v) => downloads.extend(v),
+                None => (),
+            };
         }
 
         if main_class == ""
@@ -496,31 +521,34 @@ impl Version {
                 })
             || downloads.len() == 0
         {
-            panic!("Bad Version JSON");
+            return Err(anyhow::anyhow!("Bad Version JSON"));
         }
         Ok(ResolvedVersion {
             id: self.id.clone(),
             arguments: Some(ResolvedArguments {
                 game: game_args,
                 jvm: jvm_args,
-                // game: resolve_arguments(game_args, platform).await,
-                // jvm: resolve_arguments(jvm_args, platform).await,
             }),
             main_class,
             asset_index,
-            assets: self.assets.clone().unwrap_or("".to_string()),
-            downloads: self.downloads.clone(),
+            assets,
+            downloads: Some(downloads),
             libraries: resolve_libraries(libraries_raw, platform).await,
             minimum_launcher_version,
             release_time,
             time,
             version_type,
-            logging: self.logging.clone(),
+            logging: Some(logging),
             java_version: self.java_version.clone().unwrap_or(JavaVersion {
                 component: "jre-legacy".to_string(),
                 major_version: 8,
             }),
-            minecraft_version: self.client_version.clone().unwrap_or(self.id.clone()),
+            minecraft_version: match MinecraftVersion::from_str(
+                &self.client_version.clone().unwrap_or(self.id.clone()),
+            ) {
+                Ok(v) => v,
+                Err(_) => return Err(anyhow::anyhow!("")),
+            },
             inheritances,
             path_chain,
         })
