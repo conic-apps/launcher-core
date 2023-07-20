@@ -23,11 +23,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use futures::StreamExt;
-use once_cell::sync::Lazy;
-use reqwest::{Client, Response};
+use reqwest::Response;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
+use crate::core::HTTP_CLIENT;
 use crate::core::task::TaskEventListeners;
 
 use super::sha1::calculate_sha1_from_read;
@@ -38,8 +38,6 @@ pub struct Download<P: AsRef<Path> + AsRef<OsStr>> {
     pub file: P,
     pub sha1: Option<String>,
 }
-
-static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 
 // todo: 接受url列表以便轮询
 // todo: 测试是不是只要把on_progress包在Arc和Mutex里就可以，不需要thread safe版本的实现

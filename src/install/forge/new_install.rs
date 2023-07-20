@@ -33,8 +33,8 @@ use crate::{
 };
 
 use super::{
-    *,
     install_profile::{InstallProfile, InstallProfileData},
+    *,
 };
 
 pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
@@ -61,11 +61,11 @@ pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
     }
 
     //   resolve all the required paths
-    let root_path = minecraft.root.clone();
+    let version_id = version_json["id"].as_str().unwrap();
+    let version_root_path = minecraft.get_version_root(version_id).clone();
 
-    let version_json_path =
-        root_path.join(format!("{}.json", version_json["id"].as_str().unwrap()));
-    let install_json_path = root_path.join("install_profile.json");
+    let version_json_path = version_root_path.join(format!("{}.json", version_id));
+    let install_json_path = version_root_path.join("install_profile.json");
 
     let data_root = jar_path.parent().unwrap().to_path_buf();
 
@@ -147,7 +147,7 @@ pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
             minecraft.get_library_by_path(&file_name[file_name.find("/").unwrap() + 1..]),
             forge_jar.content,
         )
-            .await?;
+        .await?;
     }
 
     let unpack_data = |entry: Entry| -> Result<()> {
@@ -181,7 +181,7 @@ pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
         version_json_path,
         serde_json::to_string_pretty(&version_json)?,
     )
-        .await?;
+    .await?;
 
     decompression_files(zip, decompression_tasks).await;
 

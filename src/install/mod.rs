@@ -136,7 +136,7 @@ pub async fn install_dependencies(
     download_list.extend(
         generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await?,
     );
-    download_files(download_list, listeners, false).await?;
+    download_files(download_list, listeners, true).await?;
 
     Ok(())
 }
@@ -221,7 +221,7 @@ pub async fn quick_install_dependencies(
 ) -> Result<()> {
     let platform = PlatformInfo::new().await;
     let raw_version_path = minecraft_location.get_version_json(version_id);
-    let raw_version_content = tokio::fs::read_to_string(raw_version_path)   .await?;
+    let raw_version_content = tokio::fs::read_to_string(raw_version_path).await?;
     let raw_version = version::Version::from_str(&raw_version_content)?;
     let version = raw_version.parse(&minecraft_location, &platform).await?;
     let mut download_list = Vec::new();

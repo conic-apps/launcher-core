@@ -254,41 +254,39 @@ pub struct JavaVersion {
 /// It used to compare the version of the game
 #[derive(Debug, Clone, Serialize)]
 pub enum MinecraftVersion {
-    Release(u8, u8, u8),
+    Release(u8, u8, Option<u8>),
     Snapshot(u8, u8, String),
     Unknown(String),
 }
 
 impl FromStr for MinecraftVersion {
-    type Err = ();
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match parse_version(s) {
-            Ok(x) => Ok(x),
-            Err(_) => Err(()),
-        }
+        parse_version(s)
     }
 }
 
 fn parse_version(s: &str) -> Result<MinecraftVersion> {
-    match s {
-        "." => {
-            let split = s.split(".").collect::<Vec<&str>>();
-            Ok(MinecraftVersion::Release(
-                split.get(0).ok_or(anyhow::anyhow!(""))?.parse()?,
-                split.get(1).ok_or(anyhow::anyhow!(""))?.parse()?,
-                split.get(2).ok_or(anyhow::anyhow!(""))?.parse()?,
-            ))
-        }
-        "w" => {
-            let split = s.split("w").collect::<Vec<&str>>();
-            let minor_version = split.get(1).ok_or(anyhow::anyhow!(""))?;
-            Ok(MinecraftVersion::Snapshot(
-                split.get(0).ok_or(anyhow::anyhow!(""))?.parse()?,
-                (&minor_version[..2]).parse()?,
-                (&minor_version[2..]).to_string(),
-            ))
-        }
-        _ => Ok(MinecraftVersion::Unknown(s.to_string())),
+    if s.contains(".") {
+        let split = s.split(".").collect::<Vec<&str>>();
+        Ok(MinecraftVersion::Release(
+            split.get(0).ok_or(anyhow::anyhow!(""))?.parse()?,
+            split.get(1).ok_or(anyhow::anyhow!(""))?.parse()?,
+            match split.get(2) {
+                Some(x) => Some(x.parse()?),
+                None => None,
+            },
+        ))
+    } else if s.contains("w") {
+        let split = s.split("w").collect::<Vec<&str>>();
+        let minor_version = split.get(1).ok_or(anyhow::anyhow!(""))?;
+        Ok(MinecraftVersion::Snapshot(
+            split.get(0).ok_or(anyhow::anyhow!(""))?.parse()?,
+            (&minor_version[..2]).parse()?,
+            (&minor_version[2..]).to_string(),
+        ))
+    } else {
+        Ok(MinecraftVersion::Unknown(s.to_string()))
     }
 }
 
@@ -300,7 +298,6 @@ fn parse_version(s: &str) -> Result<MinecraftVersion> {
 pub struct ResolvedVersion {
     /// The id of the version, should be identical to the version folder.
     pub id: String,
-    pub minecraft_version: MinecraftVersion,
     pub arguments: Option<ResolvedArguments>,
 
     /// The main class full qualified name.
@@ -510,17 +507,16 @@ impl Version {
                 None => (),
             };
         }
-
-        if main_class == ""
-            || asset_index
-                == Some(AssetIndex {
-                    size: 0,
-                    url: "".to_string(),
-                    id: "".to_string(),
-                    total_size: 0,
-                })
-            || downloads.len() == 0
-        {
+        let main_class_is_empty = main_class.is_empty();
+        let assets_index_is_empty = asset_index
+            == Some(AssetIndex {
+                size: 0,
+                url: "".to_string(),
+                id: "".to_string(),
+                total_size: 0,
+            });
+        let downloads_is_empty = downloads.len() == 0;
+        if main_class_is_empty || assets_index_is_empty || downloads_is_empty {
             return Err(anyhow::anyhow!("Bad Version JSON"));
         }
         Ok(ResolvedVersion {
@@ -543,12 +539,6 @@ impl Version {
                 component: "jre-legacy".to_string(),
                 major_version: 8,
             }),
-            minecraft_version: match MinecraftVersion::from_str(
-                &self.client_version.clone().unwrap_or(self.id.clone()),
-            ) {
-                Ok(v) => v,
-                Err(_) => return Err(anyhow::anyhow!("")),
-            },
             inheritances,
             path_chain,
         })
@@ -567,38 +557,38 @@ pub struct ResolvedLibrary {
     pub is_native_library: bool,
 }
 
-async fn _resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> Vec<String> {
-    let mut result = Vec::with_capacity(arguments.len());
-    for argument in arguments {
-        if argument.is_string() {
-            result.push(argument.as_str().unwrap().to_string());
-            continue;
-        }
-        if !argument.is_object() {
-            continue;
-        }
-        let rules = argument["rules"].as_array();
-        if let Some(rules) = rules {
-            if !check_allowed(rules.clone(), platform) {
-                continue;
-            };
-        }
-        if argument["value"].is_string() {
-            result.push(argument["value"].as_str().unwrap().to_string());
-            continue;
-        }
-        if argument["value"].is_array() {
-            result.extend(
-                argument["value"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|value| value.as_str().unwrap().to_string()),
-            );
-        }
-    }
-    result
-}
+// async fn _resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> Vec<String> {
+//     let mut result = Vec::with_capacity(arguments.len());
+//     for argument in arguments {
+//         if argument.is_string() {
+//             result.push(argument.as_str().unwrap().to_string());
+//             continue;
+//         }
+//         if !argument.is_object() {
+//             continue;
+//         }
+//         let rules = argument["rules"].as_array();
+//         if let Some(rules) = rules {
+//             if !check_allowed(rules.clone(), platform) {
+//                 continue;
+//             };
+//         }
+//         if argument["value"].is_string() {
+//             result.push(argument["value"].as_str().unwrap().to_string());
+//             continue;
+//         }
+//         if argument["value"].is_array() {
+//             result.extend(
+//                 argument["value"]
+//                     .as_array()
+//                     .unwrap()
+//                     .iter()
+//                     .map(|value| value.as_str().unwrap().to_string()),
+//             );
+//         }
+//     }
+//     result
+// }
 
 async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Vec<ResolvedLibrary> {
     let mut result = Vec::new();

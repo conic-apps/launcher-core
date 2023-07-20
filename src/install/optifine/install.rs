@@ -29,7 +29,7 @@ use crate::core::DELIMITER;
 
 use super::{InstallOptifineOptions, DEFAULT_META_URL};
 
-const OPTIFINE_INSTALL_HELPER: &[u8] = include_bytes!("./optifine-installer.jar");
+const OPTIFINE_INSTALL_HELPER: &[u8] = include_bytes!("../../../vendor/optifine-installer.jar");
 
 /// Download forge installer
 pub async fn download_optifine_installer<P, D>(
