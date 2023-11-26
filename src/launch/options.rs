@@ -16,12 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::{path::{PathBuf, Path}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use regex::Regex;
 use serde_json::Value;
 
-use crate::core::{version::Version, folder::MinecraftLocation};
+use crate::core::{folder::MinecraftLocation, version::Version};
 
 #[derive(Debug, Clone)]
 pub struct GameProfile {
@@ -191,7 +195,7 @@ pub struct LaunchOptions {
 
 impl LaunchOptions {
     /// spawn an instance with default launch options
-    pub async fn new(version_id: &str, minecraft: MinecraftLocation) -> Result<Self> {
+    pub async fn new(version_id: &str, minecraft: &MinecraftLocation) -> Result<Self> {
         let version_json_path = minecraft.get_version_json(version_id);
         let raw_version_json = tokio::fs::read_to_string(version_json_path).await?;
         let version_json: Version = serde_json::from_str((&raw_version_json).as_ref())?;
@@ -200,13 +204,11 @@ impl LaunchOptions {
             game_profile: GameProfile {
                 name: "Steve".to_string(),
                 uuid: uuid::Uuid::new_v4().to_string().replace('-', ""),
-                // uuid: "100062fc9db949789bccc0f781cc0cad".to_string()
             },
             access_token: uuid::Uuid::new_v4().to_string().replace('-', ""),
-            // access_token: "eyJraWQiOiJhYzg0YSIsImFsZyI6IkhTMjU2In0.eyJ4dWlkIjoiMjUzNTQyNzc5NTA3MzUxOCIsImFnZyI6IkFkdWx0Iiwic3ViIjoiNThjZDc4MzQtMzZjMi00YjFmLThkMjUtYTdhMmUwMDE2Y2E5IiwiYXV0aCI6IlhCT1giLCJucyI6ImRlZmF1bHQiLCJyb2xlcyI6W10sImlzcyI6ImF1dGhlbnRpY2F0aW9uIiwiZmxhZ3MiOlsidHdvZmFjdG9yYXV0aCIsIm9yZGVyc18yMDIyIl0sInBsYXRmb3JtIjoiVU5LTk9XTiIsInl1aWQiOiIzZGFlYzJmZjMxMjYwMjFhNzk3YWJjNDJiYzU4MDIzMSIsIm5iZiI6MTY4ODkwNjQ2MywiZXhwIjoxNjg4OTkyODYzLCJpYXQiOjE2ODg5MDY0NjN9.BL3S2hA94toLOzEIv048oemlEumiKHR59CtuCFKb6_w".to_string(),
             user_type: UserType::Mojang,
             properties: "{}".to_string(),
-            launcher_name: "Magical_Launcher".to_string(),
+            launcher_name: "AmethystLauncher".to_string(),
             launcher_version: "0.0.1".to_string(),
             version_name: None,
             version_type: None,
@@ -223,7 +225,7 @@ impl LaunchOptions {
             height: 480,
             fullscreen: false,
             extra_jvm_args: vec![],
-            extra_mc_args: Vec::new(),
+            extra_mc_args: vec![],
             is_demo: false,
             ignore_invalid_minecraft_certificates: false,
             ignore_patch_discrepancies: false,
@@ -237,5 +239,39 @@ impl LaunchOptions {
             minecraft_location: minecraft.clone(),
             native_path: MinecraftLocation::get_natives_root(),
         })
+    }
+
+    pub async fn new_forge_options(
+        version_id: &str,
+        minecraft: &MinecraftLocation,
+    ) -> Result<Self> {
+        let mut default = LaunchOptions::new(version_id, &minecraft).await?;
+
+        let version = minecraft.get_version_json(version_id);
+        let version = tokio::fs::read_to_string(version).await?;
+        let version = serde_json::from_str::<Version>(&version)?;
+
+        if let Some(arguments) = version.minecraft_arguments {
+            let tweak_class_regex = Regex::new(r"--tweakClass\s+.+").unwrap();
+            let forge_arguments = tweak_class_regex
+                .captures(&arguments)
+                .ok_or(anyhow!("tweakClass not found"))?
+                .get(0)
+                .ok_or(anyhow!("tweakClass not found"))?
+                .as_str();
+            default.extra_mc_args.extend(
+                forge_arguments
+                    .split(" ")
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            );
+        }
+
+        default.extra_jvm_args.extend(vec![
+            "\"-Dfml.ignoreInvalidMinecraftCertificates=true\"".to_string(),
+            "\"-Dfml.ignorePatchDiscrepancies=true\"".to_string(),
+        ]);
+
+        Ok(default)
     }
 }

@@ -79,7 +79,7 @@ pub static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
 pub static DEFAULT_LAUNCHER_PROFILE: &[u8] = include_bytes!("./launcher_profile.json");
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub(crate) enum OsType {
+pub enum OsType {
     Windows,
     Linux,
     Osx,
@@ -89,7 +89,7 @@ pub(crate) enum OsType {
 pub struct PlatformInfo {
     pub arch: String,
     pub name: String,
-    pub(crate) os_type: OsType,
+    pub os_type: OsType,
     pub version: String,
 }
 
@@ -122,7 +122,8 @@ impl PlatformInfo {
                 {
                     use regex::Regex;
 
-                    let mut command = Command::new("C:\\Windows\\System32\\cmd.exe");
+                    let mut command = Command::new("C:\\Windows\\System32\\cmd.exe")
+                    .creation_flags(0x08000000);
                     command.args(&[
                         "/C",
                         r#"powershell -c [System.Environment]::OSVersion.Version"#,

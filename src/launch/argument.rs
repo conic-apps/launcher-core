@@ -16,7 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::{collections::HashMap, env::vars, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    env::vars,
+    path::PathBuf,
+};
 
 use anyhow::Result;
 use regex::Regex;
@@ -136,18 +140,6 @@ impl LaunchArguments {
             }
         }
 
-        // command_arguments.extend([
-        //     "-XX:MaxInlineSize=420".to_string(),
-        //     "-XX:-UseAdaptiveSizePolicy".to_string(),
-        //     "-XX:-OmitStackTraceInFastThrow".to_string(),
-        //     "-XX:-DontCompileHugeMethods".to_string(),
-        //     "-Djava.rmi.server.useCodebaseOnly=true".to_string(),
-        //     "-Dcom.sun.jndi.rmi.object.trustURLCodebase=false".to_string(),
-        //     "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false".to_string(),
-        //     "-Dlog4j2.formatMsgNoLookups=true".to_string(),
-        // ]); // todo: test the jvm args
-        // todo: support proxy
-
         let mut jvm_options: HashMap<&str, String> = HashMap::new();
         jvm_options.insert(
             "natives_directory",
@@ -169,11 +161,12 @@ impl LaunchArguments {
         if let Some(logging) = version.logging {
             if let Some(client) = logging.get("client") {
                 let argument = &client.argument;
-                let file_path = minecraft.get_log_config(&client.file.id);
+                let file_path = minecraft.get_version_root(&version.id).join("log4j2.xml");
                 if tokio::fs::try_exists(&file_path).await? {
-                    jvm_arguments.push(
-                        argument.replace("${path}", &file_path.to_string_lossy().to_string()),
-                    );
+                    jvm_arguments.push(format!(
+                        "\"{}\"",
+                        argument.replace("${path}", &file_path.to_string_lossy().to_string())
+                    ));
                 }
             }
         }
@@ -404,6 +397,8 @@ fn resolve_classpath(
                 .to_string_lossy()
                 .to_string()
         })
+        .collect::<HashSet<String>>()
+        .into_iter()
         .collect::<Vec<String>>();
 
     classpath.push(

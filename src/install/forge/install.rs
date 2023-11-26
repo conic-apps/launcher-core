@@ -64,17 +64,13 @@ use zip::ZipArchive;
 use crate::{
     core::{
         folder::MinecraftLocation,
-        task::TaskEventListeners,
         version::{LibraryDownload, MinecraftVersion},
         HTTP_CLIENT,
     },
-    install::{
-        forge::{
-            install_profile::{InstallProfile, InstallProfileLegacy},
-            legacy_install::install_legacy_forge_from_zip,
-            new_install::unpack_forge_installer,
-        },
-        install_vanilla_game, quick_install_dependencies,
+    install::forge::{
+        install_profile::{InstallProfile, InstallProfileLegacy},
+        legacy_install::install_legacy_forge_from_zip,
+        new_install::unpack_forge_installer,
     },
     utils::{
         download::{download, Download},
@@ -84,9 +80,7 @@ use crate::{
 
 use super::*;
 
-const DEFAULT_FORGE_MAVEN: &str = "http://files.minecraftforge.net/maven";
-
-// todo: 使用 Steve-xmh/forge-install-bootstrapper 修复新版forge安装
+// const DEFAULT_FORGE_MAVEN: &str = "https://files.minecraftforge.net/maven";
 
 async fn download_forge_installer(
     required_version: RequiredVersion,
@@ -179,39 +173,12 @@ pub async fn install_forge(
 ) -> Result<()> {
     let mcversion: Vec<_> = version.mcversion.split(".").collect();
     let minor = *mcversion.get(1).unwrap();
-    let minor_version = minor.parse::<i32>().unwrap();
-    let patch = mcversion.get(2);
-    let forge_version = if minor_version >= 7 && minor_version <= 8 {
-        match patch {
-            Some(patch) => {
-                if (&version.version == "10.12.2.1154"
-                    || &version.version == "10.12.2.1155"
-                    || &version.version == "10.12.2.1161")
-                    && *patch == "2"
-                {
-                    format!(
-                        "{}-{}-mc{}",
-                        version.mcversion,
-                        version.version,
-                        version.mcversion.replace(".", "")
-                    )
-                } else {
-                    format!(
-                        "{mc}-{forge}-{mc}",
-                        mc = version.mcversion,
-                        forge = version.version
-                    )
-                }
-            }
-            None => format!(
-                "{mc}-{forge}-{mc}",
-                mc = version.mcversion,
-                forge = version.version
-            ),
-        }
-    } else {
-        format!("{}-{}", version.mcversion, version.version)
+    let minor_version = minor.parse::<u8>().unwrap();
+    let patch = match mcversion.get(2) {
+        Some(patch) => Some(*patch),
+        None => None,
     };
+    let forge_version = get_forge_version(minor_version, patch, &version);
 
     let (installer_jar_path, _installer_jar) =
         download_forge_installer(version, &minecraft, &options)
@@ -238,7 +205,7 @@ pub async fn install_forge(
     let mut installer_jar = ZipArchive::new(File::open(&installer_jar_path).unwrap()).unwrap();
 
     let install_profile_json = match &entries.install_profile_json {
-        None => panic!("Bad forge installer jar!"),
+        None => return Err(anyhow::anyhow!("Bad forge installer jar!")),
         Some(data) => String::from_utf8(data.content.clone()).unwrap(),
     };
     println!("{}", install_profile_json);
@@ -284,10 +251,44 @@ pub async fn install_forge(
                 .await
                 .unwrap();
         }
-        ForgeType::Bad => panic!("Bad forge installer jar!"),
+        ForgeType::Bad => return Err(anyhow::anyhow!("Bad forge installer jar!")),
     }
 
     Ok(())
+}
+
+fn get_forge_version(minor_version: u8, patch: Option<&str>, version: &RequiredVersion) -> String {
+    if (minor_version >= 7 && minor_version <= 9) || (minor_version == 10 && patch.is_none()) {
+        match patch {
+            Some(patch) => {
+                if (&version.version == "10.12.2.1154"
+                    || &version.version == "10.12.2.1155"
+                    || &version.version == "10.12.2.1161")
+                    && patch == "2"
+                {
+                    format!(
+                        "{}-{}-mc{}",
+                        version.mcversion,
+                        version.version,
+                        version.mcversion.replace(".", "")
+                    )
+                } else {
+                    format!(
+                        "{mc}-{forge}-{mc}",
+                        mc = version.mcversion,
+                        forge = version.version
+                    )
+                }
+            }
+            None => format!(
+                "{mc}-{forge}-{mc}.0",
+                mc = version.mcversion,
+                forge = version.version
+            ),
+        }
+    } else {
+        format!("{}-{}", version.mcversion, version.version)
+    }
 }
 
 pub async fn find_download_link(forge_version: &str, minecraft_version: &str) -> Result<String> {
@@ -301,20 +302,24 @@ pub async fn find_download_link(forge_version: &str, minecraft_version: &str) ->
         .text()
         .await?
         .replace("\r\n", "\n");
-    let minecraft_version = if let MinecraftVersion::Release(_, minor, _) =
+    let (minor_version, revised_version) = if let MinecraftVersion::Release(_, minor, revised) =
         MinecraftVersion::from_str(minecraft_version).unwrap()
     {
-        minor
+        (minor, revised)
     } else {
-        return Err(anyhow::anyhow!(""));
+        return Err(anyhow::anyhow!("Not a valid minecraft version"));
     };
     let document_split = document
         .split("\n")
         .filter(|x| {
-            let installer = if minecraft_version < 3 {
+            let installer = if minor_version < 3 {
                 "clie"
-            } else if minecraft_version < 13 {
-                "uni"
+            } else if minor_version <= 5 && revised_version.is_some() {
+                if revised_version.unwrap() == 2 {
+                    "ins"
+                } else {
+                    "uni"
+                }
             } else {
                 "ins"
             };
@@ -362,59 +367,28 @@ async fn test() {
     // install_forge(
     //     RequiredVersion {
     //         installer: None,
-    //         mcversion: "1.13.2".to_string(),
-    //         version: "25.0.160".to_string(),
+    //         mcversion: "1.12.2".to_string(),
+    //         version: "14.23.5.2860".to_string(),
     //     },
     //     MinecraftLocation::new("test"),
     //     None,
     // )
     // .await
     // .unwrap();
+    // use crate::install::install_vanilla_game;
+    // use crate::core::task::TaskEventListeners;
     // install_vanilla_game(
-    //     "1.13.2",
+    //     "1.12.2",
     //     MinecraftLocation::new("test"),
     //     TaskEventListeners::default(),
     // ).await.unwrap();
+    use crate::install::quick_install_dependencies;
+    use crate::core::task::TaskEventListeners;
     quick_install_dependencies(
-        "1.13.2-forge-25.0.160",
+        "1.12.2-forge-14.23.5.2860",
         MinecraftLocation::new("test"),
         TaskEventListeners::default(),
     )
     .await
     .unwrap();
-    // let version = tokio::fs::read_to_string(minecraft_location.get_version_json("1.7.2"))
-    //     .await
-    //     .unwrap();
-    // install_forge(
-    //     RequiredVersion {
-    //         installer: None,
-    //         mcversion: "1.7.2".to_string(),
-    //         version: "10.12.2.1161".to_string(),
-    //     },
-    //     minecraft_location,
-    //     Some(InstallForgeOptions {
-    //         maven_host: None,
-    //         libraries_download_concurrency: None,
-    //         inherits_from: Some("1.7.2".to_string()),
-    //         version_id: Some("1.7.2-forge-10.12.2.1161".to_string()),
-    //         java: None,
-    //     }),
-    // )
-    // .await
-    // .unwrap();
-    // use crate::core::PlatformInfo;
-    // use crate::core::version::Version;
-    // let minecraft = MinecraftLocation::new("test");
-    // let version = minecraft.get_version_json("1.7.2-forge-10.12.2.1161");
-    // let version = tokio::fs::read_to_string(version).await.unwrap();
-    // let platform = PlatformInfo::new().await;
-    // let version = Version::from_str(&version).unwrap();
-    // let version = version.parse(&minecraft, &platform).await.unwrap();
-    // println!("{}", serde_json::to_string(&version).unwrap());
-    // use crate::install::quick_install_dependencies;
-    // let listener = TaskEventListeners::default();
-    // let minecraft = MinecraftLocation::new("test");
-    // quick_install_dependencies("1.7.2-forge-10.12.2.1161", minecraft, listener)
-    //     .await
-    //     .unwrap();
 }

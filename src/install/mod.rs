@@ -18,7 +18,7 @@
 
 use std::str::FromStr;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use reqwest::Url;
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
@@ -50,7 +50,7 @@ pub struct NetworkOptions {
 }
 
 pub(crate) fn generate_libraries_download_list(
-    libraries: Vec<ResolvedLibrary>,
+    libraries: &Vec<ResolvedLibrary>,
     minecraft_location: &MinecraftLocation,
 ) -> Vec<Download<String>> {
     libraries
@@ -130,12 +130,18 @@ pub async fn install_dependencies(
     let mut download_list = Vec::new();
 
     download_list.extend(generate_libraries_download_list(
-        version.libraries,
+        &version.libraries,
         &minecraft_location,
     ));
     download_list.extend(
-        generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await?,
+        generate_assets_download_list(version.asset_index.clone().unwrap(), &minecraft_location)
+            .await?,
     );
+    let log4j2 = generate_log4j2_configuration_download(&version, &minecraft_location);
+    if let Ok(log4j2) = log4j2 {
+        download_list.push(log4j2);
+    }
+
     download_files(download_list, listeners, true).await?;
 
     Ok(())
@@ -179,19 +185,44 @@ pub async fn generate_download_list(
     });
 
     download_list.extend(generate_libraries_download_list(
-        version.libraries,
+        &version.libraries,
         &minecraft_location,
     ));
     download_list.extend(
         generate_assets_download_list(
             version
                 .asset_index
+                .clone()
                 .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?,
             &minecraft_location,
         )
         .await?,
     );
+    let log4j2 = generate_log4j2_configuration_download(&version, &minecraft_location);
+    if let Ok(log4j2) = log4j2 {
+        download_list.push(log4j2);
+    }
     Ok(download_list)
+}
+
+pub fn generate_log4j2_configuration_download(
+    version: &ResolvedVersion,
+    minecraft_location: &MinecraftLocation,
+) -> Result<Download<String>> {
+    let logging = version.logging.clone().ok_or(anyhow!("No logging found"))?;
+    let logging_client = logging
+        .get("client")
+        .ok_or(anyhow!("No logging client found"))?
+        .clone();
+    Ok(Download {
+        url: logging_client.file.url,
+        file: minecraft_location
+            .get_version_root(version.id.clone())
+            .join("log4j2.xml")
+            .to_string_lossy()
+            .to_string(),
+        sha1: Some(logging_client.file.sha1),
+    })
 }
 
 /// Quick game install
@@ -227,12 +258,18 @@ pub async fn quick_install_dependencies(
     let mut download_list = Vec::new();
 
     download_list.extend(generate_libraries_download_list(
-        version.libraries,
+        &version.libraries,
         &minecraft_location,
     ));
     download_list.extend(
-        generate_assets_download_list(version.asset_index.unwrap(), &minecraft_location).await?,
+        generate_assets_download_list(version.asset_index.clone().unwrap(), &minecraft_location)
+            .await?,
     );
+    let log4j2 = generate_log4j2_configuration_download(&version, &minecraft_location);
+    if let Ok(log4j2) = log4j2 {
+        download_list.push(log4j2);
+    }
+
     download_files(download_list, listeners, false).await?;
     Ok(())
 }

@@ -142,7 +142,10 @@ pub(super) async fn unpack_forge_installer<R: Read + io::Seek>(
     }
 
     if let Some(forge_jar) = entries.forge_jar {
-        let file_name = entries.forge_universal_jar.unwrap().name;
+        let file_name = match entries.forge_universal_jar {
+            Some(v) => v.name,
+            None => forge_jar.name,
+        };
         fs::write(
             minecraft.get_library_by_path(&file_name[file_name.find("/").unwrap() + 1..]),
             forge_jar.content,

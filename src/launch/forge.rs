@@ -28,38 +28,9 @@ use async_trait::async_trait;
 
 use crate::core::{folder::MinecraftLocation, JavaExec, PlatformInfo};
 
-use super::{argument::LaunchArguments, options::LaunchOptions};
+use super::{argument::LaunchArguments, launch::Launch, options::LaunchOptions};
 
-#[async_trait]
-pub trait Launch
-where
-    Self: Sized,
-{
-    /// spawn an instance with default launch options
-    async fn new(
-        version_id: &str,
-        minecraft: MinecraftLocation,
-        java: JavaExec,
-    ) -> Result<Self>;
-    /// spawn an instance with custom launch options
-    fn from_options(launch_options: LaunchOptions, java: JavaExec) -> Self;
-
-    /// launch game.
-    ///
-    /// Note: this function will block the current thread when game running
-    async fn launch(
-        &mut self,
-        on_start: Option<Box<dyn FnMut() + Send>>,
-        on_stdout: Option<Box<dyn FnMut(String) + Send>>,
-        on_stderr: Option<Box<dyn FnMut(String) + Send>>,
-        on_exit: Option<Box<dyn FnMut(i32) + Send>>,
-    ) -> Result<()>;
-}
-
-/// All game launcher
-///
-/// Use `Launcher::new` to spawn an instance with minimal launch options
-pub struct Launcher {
+pub struct ForgeLauncher {
     pub launch_options: LaunchOptions,
     pub minecraft: MinecraftLocation,
 
@@ -72,12 +43,8 @@ pub struct Launcher {
 }
 
 #[async_trait]
-impl Launch for Launcher {
-    async fn new(
-        version_id: &str,
-        minecraft: MinecraftLocation,
-        java: JavaExec,
-    ) -> Result<Self> {
+impl Launch for ForgeLauncher {
+    async fn new(version_id: &str, minecraft: MinecraftLocation, java: JavaExec) -> Result<Self> {
         let launch_options = LaunchOptions::new(version_id, &minecraft).await?;
         Ok(Self {
             launch_options,
@@ -190,29 +157,4 @@ impl Launch for Launcher {
 
         Ok(())
     }
-}
-
-#[tokio::test]
-async fn test() {
-    let a = MinecraftLocation::new("/home/brokendeer/桌面/magical-launcher-core/test");
-    // install("1.20.1", a.clone(), TaskEventListeners::default())
-    //     .await
-    //     .unwrap();
-    let options = LaunchOptions::new_forge_options("1.12.2-forge-14.23.5.2860", &a)
-        .await
-        .unwrap();
-    let mut b = Launcher::from_options(
-        options,
-        JavaExec::new("/usr/lib64/jvm/java-1.8.0-openjdk-1.8.0/jre").await,
-    );
-    // .await;
-    let c = |v| {
-        println!("{}", v);
-    };
-    let d: Box<dyn FnMut(String) + Send> = Box::new(c);
-    let c = |v| {
-        println!("{}", v);
-    };
-    let e = Box::new(c);
-    b.launch(None, Some(d), Some(e), None).await.unwrap();
 }

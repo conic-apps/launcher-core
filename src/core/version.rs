@@ -489,7 +489,15 @@ impl Version {
 
             release_time = version.release_time.unwrap_or(release_time);
             time = version.time.unwrap_or(time);
-            logging = version.logging.unwrap_or(logging);
+            logging = if let Some(logging_) = version.logging {
+                if logging_.len() == 0 {
+                    logging
+                } else {
+                    logging_.clone()
+                }
+            } else {
+                logging
+            };
             assets = version.assets.unwrap_or(assets);
             version_type = version.r#type.unwrap_or(version_type);
             main_class = version.main_class.unwrap_or(main_class);
@@ -499,8 +507,8 @@ impl Version {
             };
             java_version = version.java_version.unwrap_or(java_version);
 
-            if let Some(mut libraries) = version.libraries {
-                libraries_raw.append(&mut libraries);
+            if let Some(libraries) = version.libraries {
+                libraries_raw.splice(0..0, libraries);
             }
             match version.downloads {
                 Some(v) => downloads.extend(v),
@@ -557,39 +565,6 @@ pub struct ResolvedLibrary {
     pub is_native_library: bool,
 }
 
-// async fn _resolve_arguments(arguments: Vec<Value>, platform: &PlatformInfo) -> Vec<String> {
-//     let mut result = Vec::with_capacity(arguments.len());
-//     for argument in arguments {
-//         if argument.is_string() {
-//             result.push(argument.as_str().unwrap().to_string());
-//             continue;
-//         }
-//         if !argument.is_object() {
-//             continue;
-//         }
-//         let rules = argument["rules"].as_array();
-//         if let Some(rules) = rules {
-//             if !check_allowed(rules.clone(), platform) {
-//                 continue;
-//             };
-//         }
-//         if argument["value"].is_string() {
-//             result.push(argument["value"].as_str().unwrap().to_string());
-//             continue;
-//         }
-//         if argument["value"].is_array() {
-//             result.extend(
-//                 argument["value"]
-//                     .as_array()
-//                     .unwrap()
-//                     .iter()
-//                     .map(|value| value.as_str().unwrap().to_string()),
-//             );
-//         }
-//     }
-//     result
-// }
-
 async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Vec<ResolvedLibrary> {
     let mut result = Vec::new();
     for library in libraries {
@@ -615,18 +590,20 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
                 continue;
             }
             let classifier = classifier.unwrap();
+            let url = match classifier["url"].as_str() {
+                Some(url) => url.to_string(),
+                None => continue,
+            };
+            let path = match classifier["path"].as_str() {
+                Some(path) => path.to_string(),
+                None => continue,
+            };
             result.push(ResolvedLibrary {
                 download_info: LibraryDownload {
                     sha1: classifier["sha1"].as_str().unwrap_or("").to_string(),
                     size: classifier["size"].as_u64().unwrap_or(0),
-                    url: match classifier["url"].as_str() {
-                        Some(url) => url.to_string(),
-                        None => continue,
-                    },
-                    path: match classifier["path"].as_str() {
-                        Some(path) => path.to_string(),
-                        None => continue,
-                    },
+                    url,
+                    path,
                 },
                 is_native_library: true,
             });
@@ -733,10 +710,6 @@ pub struct LibraryInfo {
 }
 
 impl LibraryInfo {
-    // /// Resolve the library info from the maven path.
-    // ///
-    // pub fn forge_maven_path(path: String) {}
-
     /// Get the base info of the library from its name
     /// * `lib` - The name of library of the library itself
     pub fn from_value(lib: &Value) -> Self {

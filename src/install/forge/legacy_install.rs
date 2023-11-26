@@ -21,7 +21,7 @@ use tokio::fs::{self, create_dir_all};
 
 use crate::core::{folder::MinecraftLocation, version::LibraryInfo};
 
-use super::{*, install_profile::InstallProfileLegacy};
+use super::{install_profile::InstallProfileLegacy, *};
 
 pub(super) async fn install_legacy_forge_from_zip(
     entries: ForgeLegacyInstallerEntriesPatten,
@@ -39,8 +39,8 @@ pub(super) async fn install_legacy_forge_from_zip(
             java: None,
         },
     };
-    let mut version_json = profile.version_info.unwrap();
-    
+    let mut version_json = profile.version_info.clone().unwrap();
+
     // apply override for inheritsFrom
     version_json.id = options.version_id.unwrap_or(version_json.id);
     version_json.inherits_from = match options.inherits_from {
@@ -50,10 +50,8 @@ pub(super) async fn install_legacy_forge_from_zip(
 
     let root_path = minecraft.get_version_root(&version_json.id);
     let version_json_path = root_path.join(format!("{}.json", version_json.id));
-
-    create_dir_all(&version_json_path.parent().unwrap())
-        .await
-        ?;
+    let install_profile_path = root_path.join("install_profile.json");
+    create_dir_all(&version_json_path.parent().unwrap()).await?;
     let library = version_json.libraries.clone().unwrap();
     let library = library
         .iter()
@@ -70,8 +68,12 @@ pub(super) async fn install_legacy_forge_from_zip(
         version_json_path,
         serde_json::to_string_pretty(&version_json)?,
     )
-        .await
-        ?;
+    .await?;
+    fs::write(
+        install_profile_path,
+        serde_json::to_string_pretty(&profile)?,
+    )
+    .await?;
 
     create_dir_all(
         minecraft
@@ -79,14 +81,12 @@ pub(super) async fn install_legacy_forge_from_zip(
             .parent()
             .unwrap(),
     )
-        .await
-        ?;
+    .await?;
     fs::write(
         minecraft.get_library_by_path(&library.path),
         entries.legacy_universal_jar.content,
     )
-        .await
-        ?;
+    .await?;
 
     Ok(())
 }
