@@ -122,8 +122,8 @@ impl PlatformInfo {
                 {
                     use regex::Regex;
 
-                    let mut command = Command::new("C:\\Windows\\System32\\cmd.exe")
-                    .creation_flags(0x08000000);
+                    let mut command = Command::new("C:\\Windows\\System32\\cmd.exe");
+                    command.creation_flags(0x08000000);
                     command.args(&[
                         "/C",
                         r#"powershell -c [System.Environment]::OSVersion.Version"#,
