@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use zip::ZipArchive;
 
-use crate::mod_parser::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod};
+use super::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct JarsEntry {

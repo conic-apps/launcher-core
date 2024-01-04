@@ -16,8 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod core;
-pub mod install;
-pub mod launch;
-pub mod utils;
-pub mod game_data;
+pub mod saves;
+pub mod mods;
+pub mod resourcepack;

@@ -25,7 +25,7 @@ use anyhow::{anyhow, Result};
 use nbt::{Blob, Value};
 use serde::{Deserialize, Serialize};
 
-use crate::saves::gamerule::GameRules;
+use super::gamerule::GameRules;
 use crate::utils::nbt::modify_nbt;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -316,7 +316,7 @@ pub struct WorldGenSettings {
 }
 
 /// Get level data
-/// 
+///
 /// Note: This function will return the `Data` tag in `level.dat`
 pub fn get_level_data<P: AsRef<Path>>(level_path: P) -> Result<LevelData> {
     let file = fs::File::open(level_path)?;
@@ -353,14 +353,16 @@ pub fn get_all_levels<P: AsRef<Path>>(path: P) -> Result<HashMap<String, Level>>
     let mut levels = HashMap::new();
 
     for dir_entry in fs::read_dir(path)? {
-        let dir_entry =  match dir_entry {
+        let dir_entry = match dir_entry {
             Err(_) => continue,
             Ok(dir_entry) => dir_entry,
         };
         match dir_entry.metadata() {
             Err(_) => continue,
-            Ok(metadata) => if !metadata.is_dir() {
-                continue;
+            Ok(metadata) => {
+                if !metadata.is_dir() {
+                    continue;
+                }
             }
         }
 

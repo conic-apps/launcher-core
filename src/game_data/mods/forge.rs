@@ -16,23 +16,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::{ffi::OsStr, io::Read};
 use std::fs::File;
 use std::path::Path;
+use std::{ffi::OsStr, io::Read};
 
 use anyhow::Result;
-use base64::Engine;
 use base64::engine::general_purpose;
+use base64::Engine;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use toml::Table;
 use zip::ZipArchive;
 
-use crate::{
-    mod_parser::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod},
-    utils::unzip::filter_entries,
-};
+use super::{Parse, ResolvedAuthorInfo, ResolvedDepends, ResolvedMod};
+use crate::utils::unzip::filter_entries;
 
 /// Represent the forge `mcmod.info` format.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -354,7 +352,10 @@ pub fn parse_mod_ziparchive(archive: &mut ZipArchive<File>) -> Result<ResolvedMo
     fn parse_icon(archive: &mut ZipArchive<File>, icon_path: String) -> Result<String> {
         let mut buf = Vec::new();
         archive.by_name(&icon_path)?.read_to_end(&mut buf)?;
-        Ok(format!("data:image/png;base64,{}", general_purpose::STANDARD_NO_PAD.encode(buf)))
+        Ok(format!(
+            "data:image/png;base64,{}",
+            general_purpose::STANDARD_NO_PAD.encode(buf)
+        ))
     }
     result.icon = match result.icon {
         None => None,
@@ -385,4 +386,3 @@ pub fn parse_folder<S: AsRef<OsStr> + ?Sized>(folder: &S) -> Result<Vec<Resolved
     }
     Ok(result)
 }
-
