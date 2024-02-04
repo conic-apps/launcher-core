@@ -27,13 +27,13 @@
 //! There are multiple ways to create a new [`LaunchOptions`] from a string literal:
 //!
 //! ```
-//! use mgl_core::core::folder::MinecraftLocation;
-//! use mgl_core::launch::options::LaunchOptions;
+//! use aml_core::core::folder::MinecraftLocation;
+//! use aml_core::launch::options::LaunchOptions;
 //!
 //! async fn fn_name() {
 //!     let version_id = "1.19.4";
 //!     let minecraft = MinecraftLocation::new(".minecraft");
-//!     let options = LaunchOptions::new("1.19.4", minecraft);
+//!     let options = LaunchOptions::new("1.19.4", &minecraft);
 //! }
 //! ```
 //!
@@ -42,7 +42,7 @@
 //! assuming that the default options have been passed as parameters:
 //!
 //! ```
-//! use mgl_core::launch::options::LaunchOptions;
+//! use aml_core::launch::options::LaunchOptions;
 //!
 //!  async fn fn_name2(default_options: &LaunchOptions) {
 //!     let mut options = default_options.clone();
@@ -54,18 +54,19 @@
 //! game using [`Launcher::launch()`].
 //!
 //! ```
-//! use mgl_core::core::folder::MinecraftLocation;
-//! use mgl_core::core::JavaExec;
-//! use mgl_core::launch::launch::Launcher;
-//! use mgl_core::launch::options::LaunchOptions;
+//! use aml_core::core::folder::MinecraftLocation;
+//! use aml_core::core::JavaExec;
+//! use aml_core::launch::launch::Launcher;
+//! use aml_core::launch::options::LaunchOptions;
+//! use crate::aml_core::launch::launch::Launch;
 //!
 //!  async fn fn_name3(options: LaunchOptions) {
-//!     let mut launcher = Launcher::from_options(options, JavaExec::new("/path/to/java-home")).await;
-//!     launcher.launch().await.unwrap();
+//!     let mut launcher = Launcher::from_options(options, JavaExec::new("/path/to/java-home").await);
+//!     launcher.launch(None, None, None, None).await.unwrap();
 //! }
 //! ```
 
-pub mod options;
 pub mod argument;
-pub mod launch;
 pub mod forge;
+pub mod launch;
+pub mod options;

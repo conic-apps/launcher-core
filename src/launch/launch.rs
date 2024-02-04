@@ -36,11 +36,7 @@ where
     Self: Sized,
 {
     /// spawn an instance with default launch options
-    async fn new(
-        version_id: &str,
-        minecraft: MinecraftLocation,
-        java: JavaExec,
-    ) -> Result<Self>;
+    async fn new(version_id: &str, minecraft: MinecraftLocation, java: JavaExec) -> Result<Self>;
     /// spawn an instance with custom launch options
     fn from_options(launch_options: LaunchOptions, java: JavaExec) -> Self;
 
@@ -73,11 +69,7 @@ pub struct Launcher {
 
 #[async_trait]
 impl Launch for Launcher {
-    async fn new(
-        version_id: &str,
-        minecraft: MinecraftLocation,
-        java: JavaExec,
-    ) -> Result<Self> {
+    async fn new(version_id: &str, minecraft: MinecraftLocation, java: JavaExec) -> Result<Self> {
         let launch_options = LaunchOptions::new(version_id, &minecraft).await?;
         Ok(Self {
             launch_options,

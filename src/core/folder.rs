@@ -22,7 +22,7 @@
 //!
 //! ```
 //! use std::path::Path;
-//! use mgl_core::core::folder::MinecraftLocation;
+//! use aml_core::core::folder::MinecraftLocation;
 //!
 //! let minecraft_location = MinecraftLocation::new(".minecraft");
 //!

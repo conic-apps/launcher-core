@@ -29,8 +29,9 @@
 //! Parse simple fabric mod:
 //!
 //! ```
-//! use mgl_core::mod_parser::fabric;
-//! use mgl_core::mod_parser::Parse;
+//! use aml_core::game_data::mods::fabric;
+//! use aml_core::game_data::mods::Parse;
+//! use aml_core::game_data::mods::fabric::FabricModMetadata;
 //!
 //! let metadata = FabricModMetadata::from_path("mock/fabricMod/fabric-carpet-1.20.jar").unwrap();
 //! let mod_info = metadata.parse();
@@ -40,7 +41,7 @@
 //! Resolve all mods in the folder:
 //!
 //! ```
-//! use mgl_core::mod_parser::fabric::parse_folder;
+//! use aml_core::game_data::mods::fabric::parse_folder;
 //!
 //! let result = parse_folder("mock/fabricMod").unwrap();
 //! println!("{:#?}", result);

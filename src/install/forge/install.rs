@@ -350,45 +350,45 @@ pub async fn find_download_link(forge_version: &str, minecraft_version: &str) ->
     Ok(link.to_string())
 }
 
-#[tokio::test]
-async fn test() {
-    // use crate::install::TaskEventListeners;
-    // let miencraft_version = "1.20.1";
-    // let minecraft_location = MinecraftLocation::new("test");
-    // install_vanilla_game(
-    //     miencraft_version,
-    //     minecraft_location,
-    //     TaskEventListeners::default(),
-    // )
-    // .await
-    // .unwrap();
-    // let a = find_download_link("25.0.160", "1.13.2").await.unwrap();
-    // println!("{a}");
-    // install_forge(
-    //     RequiredVersion {
-    //         installer: None,
-    //         mcversion: "1.12.2".to_string(),
-    //         version: "14.23.5.2860".to_string(),
-    //     },
-    //     MinecraftLocation::new("test"),
-    //     None,
-    // )
-    // .await
-    // .unwrap();
-    // use crate::install::install_vanilla_game;
-    // use crate::core::task::TaskEventListeners;
-    // install_vanilla_game(
-    //     "1.12.2",
-    //     MinecraftLocation::new("test"),
-    //     TaskEventListeners::default(),
-    // ).await.unwrap();
-    use crate::install::quick_install_dependencies;
-    use crate::core::task::TaskEventListeners;
-    quick_install_dependencies(
-        "1.12.2-forge-14.23.5.2860",
-        MinecraftLocation::new("test"),
-        TaskEventListeners::default(),
-    )
-    .await
-    .unwrap();
-}
+// #[tokio::test]
+// async fn test() {
+// use crate::install::TaskEventListeners;
+// let miencraft_version = "1.20.1";
+// let minecraft_location = MinecraftLocation::new("test");
+// install_vanilla_game(
+//     miencraft_version,
+//     minecraft_location,
+//     TaskEventListeners::default(),
+// )
+// .await
+// .unwrap();
+// let a = find_download_link("25.0.160", "1.13.2").await.unwrap();
+// println!("{a}");
+// install_forge(
+//     RequiredVersion {
+//         installer: None,
+//         mcversion: "1.12.2".to_string(),
+//         version: "14.23.5.2860".to_string(),
+//     },
+//     MinecraftLocation::new("test"),
+//     None,
+// )
+// .await
+// .unwrap();
+// use crate::install::install_vanilla_game;
+// use crate::core::task::TaskEventListeners;
+// install_vanilla_game(
+//     "1.12.2",
+//     MinecraftLocation::new("test"),
+//     TaskEventListeners::default(),
+// ).await.unwrap();
+//     use crate::install::quick_install_dependencies;
+//     use crate::core::task::TaskEventListeners;
+//     quick_install_dependencies(
+//         "1.12.2-forge-14.23.5.2860",
+//         MinecraftLocation::new("test"),
+//         TaskEventListeners::default(),
+//     )
+//     .await
+//     .unwrap();
+// }

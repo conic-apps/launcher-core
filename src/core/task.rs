@@ -23,9 +23,9 @@
 //! Create listeners, then use them to monitor task progress
 //!
 //! ```
-//! use mgl_core::core::folder::MinecraftLocation;
-//! use mgl_core::core::task::TaskEventListeners;
-//! use mgl_core::install::install;
+//! use aml_core::core::folder::MinecraftLocation;
+//! use aml_core::core::task::TaskEventListeners;
+//! use aml_core::install::install;
 //!  async fn fn_name() {
 //!     let listeners = TaskEventListeners::default().on_progress(Box::new(|completed, total, step| {
 //!         println!("progress: {completed}/{total}; step: {step}")
@@ -46,7 +46,7 @@
 /// basic usage:
 ///
 /// ```
-/// use mgl_core::core::task::TaskEventListeners;
+/// use aml_core::core::task::TaskEventListeners;
 ///
 /// let listeners = TaskEventListeners::default()
 ///     .on_start(Box::new(|| {

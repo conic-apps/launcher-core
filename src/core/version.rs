@@ -341,7 +341,7 @@ pub struct ResolvedVersion {
 /// usage 1:
 ///
 /// ```rust
-/// use mgl_core::core::version::Version;
+/// use aml_core::core::version::Version;
 ///
 /// async fn fn_name() {
 ///     let version = reqwest::get("https://piston-meta.mojang.com/v1/packages/715ccf3330885e75b205124f09f8712542cbe7e0/1.20.1.json")
@@ -358,7 +358,7 @@ pub struct ResolvedVersion {
 ///
 /// ```rust
 /// use std::str::FromStr;
-/// use mgl_core::core::version::Version;
+/// use aml_core::core::version::Version;
 ///
 /// async fn fn_name() {
 ///     let response = reqwest::get("https://piston-meta.mojang.com/v1/packages/715ccf3330885e75b205124f09f8712542cbe7e0/1.20.1.json")
@@ -375,9 +375,9 @@ pub struct ResolvedVersion {
 /// usage 3:
 ///
 /// ```rust
-/// use mgl_core::core::version::Version;
-/// use mgl_core::core::folder::MinecraftLocation;
-/// use mgl_core::core::PlatformInfo;
+/// use aml_core::core::version::Version;
+/// use aml_core::core::folder::MinecraftLocation;
+/// use aml_core::core::PlatformInfo;
 ///
 /// async fn fn_name(version: Version) {
 ///     let platform = PlatformInfo::new().await;

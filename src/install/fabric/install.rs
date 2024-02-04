@@ -34,15 +34,15 @@ use super::*;
 /// ### Example
 ///
 /// ```rust
-/// use mgl_core::install::fabric::install::install_fabric;
-/// use mgl_core::core::folder::MinecraftLocation;
-/// use mgl_core::install::fabric::FabricLoaderArtifact;
+/// use aml_core::install::fabric::install::install_fabric;
+/// use aml_core::core::folder::MinecraftLocation;
+/// use aml_core::install::fabric::FabricLoaderArtifact;
 ///
 /// async fn fn_name() {
 ///     let loader = FabricLoaderArtifact::new("1.19.4", "xxx").await; // xxx is your fabric loader version
 ///     let minecraft_location = MinecraftLocation::new("test");
 ///     let options = None;
-///     install_fabric(loader, minecraft_location, options).await;
+///     install_fabric(loader.unwrap(), minecraft_location, options).await;
 /// }
 /// ```
 pub async fn install_fabric(
@@ -129,9 +129,7 @@ pub async fn install_fabric(
     let inherits_from = options.inherits_from.unwrap_or(minecraft_version);
 
     let json_file_path = minecraft_location.get_version_json(&id.clone().unwrap());
-    fs::create_dir_all(json_file_path.parent().unwrap())
-        .await
-        ?;
+    fs::create_dir_all(json_file_path.parent().unwrap()).await?;
     if let Ok(metadata) = fs::metadata(&json_file_path).await {
         if metadata.is_file() {
             fs::remove_file(&json_file_path).await?;

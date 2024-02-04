@@ -40,7 +40,7 @@ pub struct FabricArtifactVersion {
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::install::fabric::FabricArtifacts;
+/// use aml_core::install::fabric::FabricArtifacts;
 ///
 /// async fn fn_name() {
 ///     let artifacts = FabricArtifacts::new().await;
@@ -60,7 +60,7 @@ pub struct FabricArtifacts {
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::install::fabric::FabricLoaderArtifact;
+/// use aml_core::install::fabric::FabricLoaderArtifact;
 ///
 /// async fn fn_name() {
 ///     let artifact = FabricLoaderArtifact::new("1.19.4", "0.1.0.48").await;
@@ -82,7 +82,7 @@ pub struct FabricLoaderArtifact {
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::install::fabric::YarnArtifactList;
+/// use aml_core::install::fabric::YarnArtifactList;
 ///
 /// async fn fn_name() {
 ///     let artifacts = YarnArtifactList::new().await;
@@ -100,7 +100,7 @@ pub struct YarnArtifactList(Vec<FabricArtifactVersion>);
 /// basic usage:
 ///
 /// ```rust
-/// use mgl_core::install::fabric::LoaderArtifactList;
+/// use aml_core::install::fabric::LoaderArtifactList;
 ///
 /// async fn fn_name() {
 ///     let artifacts = LoaderArtifactList::new().await;

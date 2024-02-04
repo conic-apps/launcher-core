@@ -24,7 +24,7 @@
 ## Getting Started
 
 ```bash
-cargo add mgl_core
+cargo add aml_core
 ```
 
 ## Documentation

@@ -24,7 +24,7 @@
 ## 开始使用
 
 ```bash
-cargo add mgl_core
+cargo add aml_core
 ```
 
 ## 文档
