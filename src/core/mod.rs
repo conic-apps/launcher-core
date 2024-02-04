@@ -35,7 +35,7 @@
 //! use mgl_core::core::folder::MinecraftLocation;
 //! use mgl_core::core::PlatformInfo;
 //! use mgl_core::core::version::Version;
-//! 
+//!
 //!  async fn fn_name() {
 //!     let version = Version::from_str("example version.json").unwrap();
 //!     let resolved = version.parse(&MinecraftLocation::new(".minecraft"), &PlatformInfo::new().await).await.unwrap();
@@ -71,7 +71,7 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
 pub mod folder;
-pub mod task;
+// pub mod task;
 pub mod version;
 
 pub static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| Client::new());
@@ -159,7 +159,7 @@ impl PlatformInfo {
             } else {
                 "unknown"
             }
-                .to_string(),
+            .to_string(),
         }
     }
 }
@@ -172,7 +172,7 @@ pub struct JavaExec {
 }
 
 impl JavaExec {
-    pub async fn new<P: AsRef<OsStr>+ ?Sized>(home: &P) -> Self {
+    pub async fn new<P: AsRef<OsStr> + ?Sized>(home: &P) -> Self {
         let home = Path::new(home).to_path_buf();
         // let release = tokio::fs::read_to_string(home.join("release"))
         //     .await
@@ -193,6 +193,13 @@ impl JavaExec {
             // version,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Download {
+    pub url: String,
+    pub file: PathBuf,
+    pub sha1: Option<String>,
 }
 
 #[cfg(test)]

@@ -24,19 +24,16 @@ use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
 use crate::core::version::ResolvedLibrary;
-use crate::{
-    core::{
-        folder::{get_path, MinecraftLocation},
-        task::TaskEventListeners,
-        version::{self, AssetIndex, AssetIndexObject, ResolvedVersion, VersionManifest},
-        PlatformInfo,
-    },
-    utils::download::{download_files, Download},
+use crate::core::Download;
+use crate::core::{
+    folder::MinecraftLocation,
+    version::{self, AssetIndex, AssetIndexObject, ResolvedVersion, VersionManifest},
+    PlatformInfo,
 };
 
 pub mod fabric;
-pub mod forge;
-pub mod optifine;
+// pub mod forge;
+// pub mod optifine;
 pub mod quilt;
 
 /// todo
@@ -49,10 +46,10 @@ pub struct NetworkOptions {
     pub quilt_remote: String,
 }
 
-pub(crate) fn generate_libraries_download_list(
+pub(crate) fn generate_libraries_downloads(
     libraries: &Vec<ResolvedLibrary>,
     minecraft_location: &MinecraftLocation,
-) -> Vec<Download<String>> {
+) -> Vec<Download> {
     libraries
         .clone()
         .into_iter()
@@ -68,19 +65,16 @@ pub(crate) fn generate_libraries_download_list(
             },
             file: minecraft_location
                 .libraries
-                .join(library.download_info.path)
-                .to_str()
-                .unwrap()
-                .to_string(),
+                .join(library.download_info.path),
             sha1: Some(library.download_info.sha1),
         })
         .collect()
 }
 
-pub(crate) async fn generate_assets_download_list(
+pub(crate) async fn generate_assets_downloads(
     asset_index: AssetIndex,
     minecraft_location: &MinecraftLocation,
-) -> Result<Vec<Download<String>>> {
+) -> Result<Vec<Download>> {
     let asset_index_url = Url::parse((&asset_index.url).as_ref())?;
     let asset_index_raw = reqwest::get(asset_index_url).await?.text().await?;
     let asset_index_json: Value = serde_json::from_str((&asset_index_raw).as_ref())?;
@@ -98,21 +92,16 @@ pub(crate) async fn generate_assets_download_list(
                 .assets
                 .join("objects")
                 .join(&obj.1.hash[0..2])
-                .join(&obj.1.hash)
-                .to_str()
-                .unwrap()
-                .to_string(),
+                .join(&obj.1.hash),
             sha1: Some(obj.1.hash),
         })
         .collect();
     assets.push(Download {
         url: asset_index.url,
-        file: get_path(
-            &minecraft_location
-                .assets
-                .join("indexes")
-                .join(format!("{}.json", asset_index.id)),
-        ),
+        file: minecraft_location
+            .assets
+            .join("indexes")
+            .join(format!("{}.json", asset_index.id)),
         sha1: None,
     });
     Ok(assets)
@@ -122,19 +111,18 @@ pub(crate) async fn generate_assets_download_list(
 ///
 /// This is usually done in situations where the integrity of the game is uncertain,
 /// such as launching for the first time after installation
-pub async fn install_dependencies(
+pub async fn generate_dependencies_downloads(
     version: ResolvedVersion,
     minecraft_location: MinecraftLocation,
-    listeners: TaskEventListeners,
 ) -> Result<()> {
     let mut download_list = Vec::new();
 
-    download_list.extend(generate_libraries_download_list(
+    download_list.extend(generate_libraries_downloads(
         &version.libraries,
         &minecraft_location,
     ));
     download_list.extend(
-        generate_assets_download_list(version.asset_index.clone().unwrap(), &minecraft_location)
+        generate_assets_downloads(version.asset_index.clone().unwrap(), &minecraft_location)
             .await?,
     );
     let log4j2 = generate_log4j2_configuration_download(&version, &minecraft_location);
@@ -142,15 +130,13 @@ pub async fn install_dependencies(
         download_list.push(log4j2);
     }
 
-    download_files(download_list, listeners, true).await?;
-
     Ok(())
 }
 
 pub async fn generate_download_list(
     version_id: &str,
     minecraft_location: MinecraftLocation,
-) -> Result<Vec<Download<String>>> {
+) -> Result<Vec<Download>> {
     let platform = PlatformInfo::new().await;
 
     let versions = VersionManifest::new().await?.versions;
@@ -180,16 +166,16 @@ pub async fn generate_download_list(
     let mut download_list = vec![];
     download_list.push(Download {
         url: format!("https://download.mcbbs.net/version/{version_id}/client"),
-        file: get_path(&minecraft_location.versions.join(format!("{id}/{id}.jar"))),
+        file: minecraft_location.versions.join(format!("{id}/{id}.jar")),
         sha1: None,
     });
 
-    download_list.extend(generate_libraries_download_list(
+    download_list.extend(generate_libraries_downloads(
         &version.libraries,
         &minecraft_location,
     ));
     download_list.extend(
-        generate_assets_download_list(
+        generate_assets_downloads(
             version
                 .asset_index
                 .clone()
@@ -208,7 +194,7 @@ pub async fn generate_download_list(
 pub fn generate_log4j2_configuration_download(
     version: &ResolvedVersion,
     minecraft_location: &MinecraftLocation,
-) -> Result<Download<String>> {
+) -> Result<Download> {
     let logging = version.logging.clone().ok_or(anyhow!("No logging found"))?;
     let logging_client = logging
         .get("client")
@@ -218,58 +204,7 @@ pub fn generate_log4j2_configuration_download(
         url: logging_client.file.url,
         file: minecraft_location
             .get_version_root(version.id.clone())
-            .join("log4j2.xml")
-            .to_string_lossy()
-            .to_string(),
+            .join("log4j2.xml"),
         sha1: Some(logging_client.file.sha1),
     })
-}
-
-/// Quick game install
-///
-/// Note: This operation does not ensure that all files are complete,
-/// please execute the [`install_dependencies`] function before the first startup
-pub async fn install_vanilla_game(
-    minecraft_version: &str,
-    minecraft_location: MinecraftLocation,
-    listeners: TaskEventListeners,
-) -> Result<()> {
-    let downlaod_list = generate_download_list(minecraft_version, minecraft_location).await?;
-    download_files(downlaod_list, listeners, false).await?;
-    Ok(())
-}
-
-/// Quick game install dependencies
-///
-/// Used to supplement libraries that were not downloaded after installing Forge.
-///
-/// Note: This operation does not ensure that all files are complete,
-/// please execute the [`install_dependencies`] function before the first startup
-pub async fn quick_install_dependencies(
-    version_id: &str,
-    minecraft_location: MinecraftLocation,
-    listeners: TaskEventListeners,
-) -> Result<()> {
-    let platform = PlatformInfo::new().await;
-    let raw_version_path = minecraft_location.get_version_json(version_id);
-    let raw_version_content = tokio::fs::read_to_string(raw_version_path).await?;
-    let raw_version = version::Version::from_str(&raw_version_content)?;
-    let version = raw_version.parse(&minecraft_location, &platform).await?;
-    let mut download_list = Vec::new();
-
-    download_list.extend(generate_libraries_download_list(
-        &version.libraries,
-        &minecraft_location,
-    ));
-    download_list.extend(
-        generate_assets_download_list(version.asset_index.clone().unwrap(), &minecraft_location)
-            .await?,
-    );
-    let log4j2 = generate_log4j2_configuration_download(&version, &minecraft_location);
-    if let Ok(log4j2) = log4j2 {
-        download_list.push(log4j2);
-    }
-
-    download_files(download_list, listeners, false).await?;
-    Ok(())
 }

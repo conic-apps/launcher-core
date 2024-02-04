@@ -142,12 +142,12 @@ impl MinecraftLocation {
     }
 }
 
-pub fn get_path(path: &PathBuf) -> String {
-    match path.to_str() {
-        None => panic!("New path is noe a valid UTF-8 sequence!"),
-        Some(s) => String::from(s),
-    }
-}
+// pub fn get_path(path: &PathBuf) -> String {
+//     match path.to_str() {
+//         None => panic!("New path is noe a valid UTF-8 sequence!"),
+//         Some(s) => String::from(s),
+//     }
+// }
 
 // #[tokio::test]
 // async fn test() {
