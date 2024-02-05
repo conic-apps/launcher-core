@@ -323,11 +323,11 @@ pub fn get_level_data<P: AsRef<Path>>(level_path: P) -> Result<LevelData> {
     Ok(nbt::from_gzip_reader::<_, Level>(file)?.data)
 }
 
-/// Modify level settings
+/// Modify level
 ///
-/// * `path` - You need to use a colon to connect the path. For example, if you want to modify the
+/// * `value_path` - You need to use a colon to connect the path. For example, if you want to modify the
 /// seed, you should use `world_gen_settings:seed` or `Data:world_gen_settings:seed`.
-pub fn modify_level<P: AsRef<Path>>(world_path: P, target: &str, value: Value) -> Result<()> {
+pub fn modify_level<P: AsRef<Path>>(world_path: P, value_path: &str, value: Value) -> Result<()> {
     let level_path = world_path.as_ref().to_path_buf().join("level.dat");
 
     let mut file = fs::File::options().read(true).open(&level_path)?;
@@ -338,7 +338,7 @@ pub fn modify_level<P: AsRef<Path>>(world_path: P, target: &str, value: Value) -
         .get("Data")
         .ok_or(anyhow!("level.dat file is broken"))?
         .clone();
-    let level_data = modify_nbt(level_data, target, value)?;
+    let level_data = modify_nbt(level_data, value_path, value)?;
     let mut result = Blob::new();
     result.insert("Data", level_data)?;
     drop(file);
@@ -349,6 +349,7 @@ pub fn modify_level<P: AsRef<Path>>(world_path: P, target: &str, value: Value) -
     Ok(())
 }
 
+/// Get all levels from 'saves' folder
 pub fn get_all_levels<P: AsRef<Path>>(path: P) -> Result<HashMap<String, Level>> {
     let mut levels = HashMap::new();
 

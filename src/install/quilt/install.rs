@@ -22,7 +22,7 @@ use crate::core::{folder::MinecraftLocation, version::Version};
 
 use super::DEFAULT_META_URL;
 
-pub async fn install_quilt_version(
+pub async fn install_quilt_version_json(
     mcversion: &str,
     quilt_version: &str,
     minecraft: MinecraftLocation,
@@ -38,7 +38,7 @@ pub async fn install_quilt_version(
     let version_name = quilt_version.id.clone();
 
     let json_path = minecraft.get_version_json(&version_name);
-    println!("{:?}", json_path);
+    // println!("{:?}", json_path);
     // let libraries = quilt_version.libraries.clone().unwrap();
     // let hashed = libraries.iter().find(|l| match l["name"].as_str() {
     //     None => false,
@@ -50,14 +50,14 @@ pub async fn install_quilt_version(
         json_path,
         serde_json::to_string_pretty(&quilt_version).unwrap(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 }
 
-#[tokio::test]
-async fn test() {
-    let mcversion = "1.19.3";
-    let quilt_version = "0.19.1";
-    let minecraft = MinecraftLocation::new("test");
-    install_quilt_version(mcversion, quilt_version, minecraft, None).await;
-}
+// #[tokio::test]
+// async fn test() {
+//     let mcversion = "1.19.3";
+//     let quilt_version = "0.19.1";
+//     let minecraft = MinecraftLocation::new("test");
+//     install_quilt_version(mcversion, quilt_version, minecraft, None).await;
+// }

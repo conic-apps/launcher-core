@@ -45,7 +45,7 @@ use super::*;
 ///     install_fabric(loader.unwrap(), minecraft_location, options).await;
 /// }
 /// ```
-pub async fn install_fabric(
+pub async fn install_fabric_version_json(
     loader: FabricLoaderArtifact,
     minecraft_location: MinecraftLocation,
     options: Option<FabricInstallOptions>,

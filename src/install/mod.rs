@@ -133,7 +133,25 @@ pub async fn generate_dependencies_downloads(
     Ok(())
 }
 
-pub async fn generate_download_list(
+pub fn generate_log4j2_configuration_download(
+    version: &ResolvedVersion,
+    minecraft_location: &MinecraftLocation,
+) -> Result<Download> {
+    let logging = version.logging.clone().ok_or(anyhow!("No logging found"))?;
+    let logging_client = logging
+        .get("client")
+        .ok_or(anyhow!("No logging client found"))?
+        .clone();
+    Ok(Download {
+        url: logging_client.file.url,
+        file: minecraft_location
+            .get_version_root(version.id.clone())
+            .join("log4j2.xml"),
+        sha1: Some(logging_client.file.sha1),
+    })
+}
+
+pub async fn generate_download_info(
     version_id: &str,
     minecraft_location: MinecraftLocation,
 ) -> Result<Vec<Download>> {
@@ -189,22 +207,4 @@ pub async fn generate_download_list(
         download_list.push(log4j2);
     }
     Ok(download_list)
-}
-
-pub fn generate_log4j2_configuration_download(
-    version: &ResolvedVersion,
-    minecraft_location: &MinecraftLocation,
-) -> Result<Download> {
-    let logging = version.logging.clone().ok_or(anyhow!("No logging found"))?;
-    let logging_client = logging
-        .get("client")
-        .ok_or(anyhow!("No logging client found"))?
-        .clone();
-    Ok(Download {
-        url: logging_client.file.url,
-        file: minecraft_location
-            .get_version_root(version.id.clone())
-            .join("log4j2.xml"),
-        sha1: Some(logging_client.file.sha1),
-    })
 }
