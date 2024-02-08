@@ -40,7 +40,49 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// todo: resources location
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GameDataLocation {
+    pub root: PathBuf,
+    pub resourcepacks: PathBuf,
+    pub mods: PathBuf,
+    pub logs: PathBuf,
+    pub latest_log: PathBuf,
+    pub saves: PathBuf,
+    pub options: PathBuf,
+    pub screenshots: PathBuf,
+}
+
+impl GameDataLocation {
+    pub fn new<S: AsRef<OsStr> + ?Sized>(root: &S) -> Self {
+        let root = Path::new(root);
+        Self {
+            root: root.to_path_buf(),
+            resourcepacks: root.join("resourcepacks"),
+            mods: root.join("mods"),
+            logs: root.join("logs"),
+            latest_log: root.join("logs").join("latest.log"),
+            saves: root.join("resourcepacks"),
+            options: root.join("options.txt"),
+            screenshots: root.join("screenshots"),
+        }
+    }
+
+    pub fn get_resource_pack<P: AsRef<Path>>(&self, file_name: P) -> PathBuf {
+        self.resourcepacks.join(file_name)
+    }
+
+    pub fn get_mod<P: AsRef<Path>>(&self, file_name: P) -> PathBuf {
+        self.mods.join(file_name)
+    }
+
+    pub fn get_log<P: AsRef<Path>>(&self, file_name: P) -> PathBuf {
+        self.logs.join(file_name)
+    }
+
+    pub fn get_level_file<P: AsRef<Path>>(&self, world_name: P) -> PathBuf {
+        self.saves.join(world_name).join("level.dat")
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 /// The Minecraft folder structure. All method will return the path related to a minecraft root like .minecraft.
@@ -48,31 +90,17 @@ pub struct MinecraftLocation {
     pub root: PathBuf,
     pub libraries: PathBuf,
     pub assets: PathBuf,
-    pub resourcepacks: PathBuf,
-    pub mods: PathBuf,
-    pub logs: PathBuf,
-    pub latest_log: PathBuf,
-    pub saves: PathBuf,
     pub versions: PathBuf,
-    pub options: PathBuf,
-    pub screenshots: PathBuf,
 }
 
 impl MinecraftLocation {
     pub fn new<S: AsRef<OsStr> + ?Sized>(root: &S) -> MinecraftLocation {
-        let path = Path::new(root);
+        let root = Path::new(root);
         MinecraftLocation {
-            root: path.to_path_buf(),
-            assets: path.join("assets"),
-            libraries: path.join("libraries"),
-            resourcepacks: path.join("resourcepacks"),
-            mods: path.join("mods"),
-            logs: path.join("logs"),
-            latest_log: path.join("logs").join("latest.log"),
-            saves: path.join("resourcepacks"),
-            versions: path.join("versions"),
-            options: path.join("options.txt"),
-            screenshots: path.join("screenshots"),
+            root: root.to_path_buf(),
+            assets: root.join("assets"),
+            libraries: root.join("libraries"),
+            versions: root.join("versions"),
         }
     }
 
@@ -111,18 +139,6 @@ impl MinecraftLocation {
         ]
     }
 
-    pub fn get_resource_pack<P: AsRef<Path>>(&self, file_name: P) -> PathBuf {
-        self.resourcepacks.join(file_name)
-    }
-
-    pub fn get_mod<P: AsRef<Path>>(&self, file_name: P) -> PathBuf {
-        self.mods.join(file_name)
-    }
-
-    pub fn get_log<P: AsRef<Path>>(&self, file_name: P) -> PathBuf {
-        self.logs.join(file_name)
-    }
-
     pub fn get_library_by_path<P: AsRef<Path>>(&self, library_path: P) -> PathBuf {
         self.libraries.join(library_path)
     }
@@ -136,24 +152,4 @@ impl MinecraftLocation {
     pub fn get_log_config<P: AsRef<Path>>(&self, file: P) -> PathBuf {
         self.assets.join("log_configs").join(file)
     }
-
-    pub fn get_level_file<P: AsRef<Path>>(&self, world_name: P) -> PathBuf {
-        self.saves.join(world_name).join("level.dat")
-    }
 }
-
-// pub fn get_path(path: &PathBuf) -> String {
-//     match path.to_str() {
-//         None => panic!("New path is noe a valid UTF-8 sequence!"),
-//         Some(s) => String::from(s),
-//     }
-// }
-
-// #[tokio::test]
-// async fn test() {
-//     let minecraft = MinecraftLocation::new("test");
-//     println!(
-//         "{:?}",
-//         MinecraftLocation::get_natives_root()
-//     );
-// }
