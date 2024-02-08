@@ -154,9 +154,8 @@ pub fn generate_log4j2_configuration_download(
 pub async fn generate_download_info(
     version_id: &str,
     minecraft_location: MinecraftLocation,
+    platform: &PlatformInfo,
 ) -> Result<Vec<Download>> {
-    let platform = PlatformInfo::new().await;
-
     let versions = VersionManifest::new().await?.versions;
     let version_metadata: Vec<_> = versions
         .into_iter()

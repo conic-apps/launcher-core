@@ -197,10 +197,3 @@ pub struct Download {
     pub file: PathBuf,
     pub sha1: Option<String>,
 }
-
-#[cfg(test)]
-#[tokio::test]
-async fn test() {
-    let platform = PlatformInfo::new().await;
-    println!("{:#?}", platform);
-}
