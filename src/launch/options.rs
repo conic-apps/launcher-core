@@ -237,7 +237,7 @@ impl LaunchOptions {
             version_id: version_id.to_string(),
             gc: GC::G1,
             minecraft_location: minecraft.clone(),
-            native_path: MinecraftLocation::get_natives_root(),
+            native_path: minecraft.get_natives_root(version_id),
         })
     }
 

@@ -104,8 +104,8 @@ impl MinecraftLocation {
         }
     }
 
-    pub fn get_natives_root() -> PathBuf {
-        Path::new("/tmp/mgl-natives").join(uuid::Uuid::new_v4().to_string())
+    pub fn get_natives_root<P: AsRef<Path>>(&self, version: P) -> PathBuf {
+        self.get_version_root(version).join("cvl-natives")
     }
 
     pub fn get_version_root<P: AsRef<Path>>(&self, version: P) -> PathBuf {
