@@ -32,7 +32,7 @@ use crate::core::{
 };
 
 pub mod fabric;
-// pub mod forge;
+pub mod forge;
 // pub mod optifine;
 pub mod quilt;
 
@@ -66,7 +66,7 @@ pub(crate) fn generate_libraries_downloads(
             file: minecraft_location
                 .libraries
                 .join(library.download_info.path),
-            sha1: Some(library.download_info.sha1),
+            sha1: library.download_info.sha1,
         })
         .collect()
 }
@@ -206,4 +206,29 @@ pub async fn generate_download_info(
         download_list.push(log4j2);
     }
     Ok(download_list)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::core::folder::MinecraftLocation;
+    use crate::core::HTTP_CLIENT;
+    #[tokio::test]
+    async fn test() {
+        let platform = PlatformInfo::new().await;
+        let downloads = generate_download_info("1.19.3", MinecraftLocation::new("test"), &platform)
+            .await
+            .unwrap();
+        for (index, download) in downloads.into_iter().enumerate() {
+            println!("{}", index);
+            let mut response = HTTP_CLIENT.get(download.url).send().await.unwrap();
+            tokio::fs::create_dir_all(download.file.parent().unwrap())
+                .await
+                .unwrap();
+            let mut file = tokio::fs::File::create(download.file).await.unwrap();
+            while let Some(chunk) = response.chunk().await.unwrap() {
+                file.write_all(&chunk).await.unwrap();
+            }
+        }
+    }
 }

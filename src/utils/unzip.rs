@@ -168,7 +168,6 @@ pub fn decompression_all<R: Read + io::Seek, S: AsRef<OsStr> + ?Sized>(
         let name = zip_file.name().to_string();
         let entry = Entry::from_zip_file(&mut zip_file);
         let path = to.join(&name);
-        // println!("{} => {}", name, path.display());
         if zip_file.is_dir() {
             std::fs::create_dir_all(zip_file.name()).unwrap();
             continue;

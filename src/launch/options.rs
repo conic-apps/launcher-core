@@ -16,10 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use regex::Regex;
@@ -64,7 +61,7 @@ pub enum ProcessPriority {
     AboveNormal,
     Normal,
     BelowNormal,
-    LOW,
+    Low,
 }
 
 /// User custom jvm gc
@@ -83,114 +80,109 @@ pub struct LaunchOptions {
     /// User selected game profile.
     ///
     /// For game display name & uuid
-    pub game_profile: GameProfile,
+    pub(crate) game_profile: GameProfile,
 
-    pub access_token: String,
-    pub user_type: UserType,
-    pub properties: String,
-    pub launcher_name: String,
-    pub launcher_version: String,
+    pub(crate) access_token: String,
+    pub(crate) user_type: UserType,
+    pub(crate) properties: String,
+    pub(crate) launcher_name: String,
+    pub(crate) launcher_version: String,
 
     /// Overwrite the version name of the current version.
     ///
     /// If this is absent, it will use version name from resolved version.
-    pub version_name: Option<String>,
+    pub(crate) version_name: Option<String>,
 
     /// Overwrite the version type of the current version.
     ///
     /// If this is absent, it will use version type from resolved version.
     ///  
     /// Some people use this to show fantastic message on the welcome screen.
-    pub version_type: Option<String>,
+    pub(crate) version_type: Option<String>,
 
     /// The full path of launched game icon
     ///
     /// Currently, this only supported on MacOS
-    pub game_icon: Option<PathBuf>,
+    pub(crate) game_icon: Option<PathBuf>,
 
     /// The launched game name
     ///
     /// Currently, this only supported on MacOS.
-    pub game_name: String,
+    pub(crate) game_name: String,
 
-    /// The path of parent directory of `saves` / `logs` / `configs` / `mods` / `resourcepacks`
+    /// The path of parent directory of `saves` / `logs` / `configs` / `mods` / `resourcepacks`.
     ///
-    /// If None, will be generated using the version_id passed in at startup
+    /// If None, will be generated using the version_id passed in at startup.
     ///
-    /// ### WARN: If it is not an absolute path, the related operation will return `Err()`
-    pub game_path: PathBuf,
+    /// ### WARN: If it is not an absolute path, the game will not save game data in the correct location.
+    pub(crate) game_path: PathBuf,
 
-    /// The path of parent directory of `assets` / `libraries`, like `.minecraft` folder
-    pub resource_path: PathBuf,
-
-    /// The java executable file path.
-    ///
-    /// Not the java home directory!
-    pub java_path: PathBuf,
+    /// The path of parent directory of `assets` / `libraries`, like `.minecraft` folder.
+    pub(crate) resource_path: PathBuf,
 
     /// Min memory, this will add a jvm flag -XMS to the command result
-    pub min_memory: u32,
+    pub(crate) min_memory: u32,
 
     /// Max memory, this will add a jvm flag -Xmx to the command result
-    pub max_memory: u32,
+    pub(crate) max_memory: u32,
 
     /// Directly launch to a server.
-    pub server: Option<Server>,
+    pub(crate) server: Option<Server>,
 
     /// window width
-    pub width: u32,
+    pub(crate) width: u32,
 
     /// window height
-    pub height: u32,
+    pub(crate) height: u32,
 
-    pub fullscreen: bool,
+    pub(crate) fullscreen: bool,
 
     /// User custom additional java virtual machine command line arguments.
     ///
     /// If this is empty, the `DEFAULT_EXTRA_JVM_ARGS` will be used.
-    pub extra_jvm_args: Vec<String>,
+    pub(crate) extra_jvm_args: Vec<String>,
 
     /// User custom additional minecraft command line arguments.
-    pub extra_mc_args: Vec<String>,
+    pub(crate) extra_mc_args: Vec<String>,
 
-    pub is_demo: bool,
+    pub(crate) is_demo: bool,
 
     // Todo: yggdrasilAgent
     /// Add `-Dfml.ignoreInvalidMinecraftCertificates=true` to jvm argument
-    pub ignore_invalid_minecraft_certificates: bool,
+    pub(crate) ignore_invalid_minecraft_certificates: bool,
 
     /// Add `-Dfml.ignorePatchDiscrepancies=true` to jvm argument
-    pub ignore_patch_discrepancies: bool,
+    pub(crate) ignore_patch_discrepancies: bool,
 
     /// Add extra classpath
-    pub extra_class_paths: Option<Vec<String>>,
+    pub(crate) extra_class_paths: Option<Vec<String>>,
 
     /// The path of parent directory of `<version_id>.jar` and `<version_id>.json`,
     ///
     /// default is `versions/{version_id}`
     ///
     /// ### WARN: If you have not saved `version.jar` and `version.json` to the default location, please modify this after creating the Launcher, otherwise related operations will return Err()
-    pub version_root: PathBuf,
+    pub(crate) version_root: PathBuf,
 
     /// The version of launched Minecraft. Can be either resolved version or version string
-    pub version: Version,
+    pub(crate) version: Version,
 
     /// Enable features. Not really in used...
-    pub features: HashMap<String, Value>,
+    pub(crate) features: HashMap<String, Value>,
 
     /// Game process priority, invalid on windows
-    pub process_priority: ProcessPriority,
+    pub(crate) process_priority: ProcessPriority,
 
     /// Support yushi's yggdrasil agent <https://github.com/to2mbn/authlib-injector/wiki>
-    pub yggdrasil_agent: Option<YggdrasilAgent>,
+    pub(crate) yggdrasil_agent: Option<YggdrasilAgent>,
 
-    pub version_id: String,
+    pub(crate) version_id: String,
 
-    pub gc: GC,
+    pub(crate) gc: GC,
 
-    pub minecraft_location: MinecraftLocation,
+    pub(crate) minecraft_location: MinecraftLocation,
 
-    pub native_path: PathBuf,
+    pub(crate) native_path: PathBuf,
 }
 
 impl LaunchOptions {
@@ -217,7 +209,6 @@ impl LaunchOptions {
             game_path: minecraft.get_version_root(version_id),
             version_root: minecraft.get_version_root(version_id),
             resource_path: minecraft.root.clone(),
-            java_path: Path::new("java").to_path_buf(),
             min_memory: 128,
             max_memory: 2048,
             server: None,

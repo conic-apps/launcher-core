@@ -20,7 +20,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct ForgeVersionListItem {
     pub _id: String,
     pub build: u32,
@@ -32,14 +32,14 @@ pub struct ForgeVersionListItem {
     pub branch: Option<Value>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct ForgeInstallerFile {
     pub format: String,
     pub category: String,
-    pub hash: String,
+    pub hash: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct ForgeVersionList(Vec<ForgeVersionListItem>);
 
 impl ForgeVersionList {
@@ -54,8 +54,17 @@ impl ForgeVersionList {
         Ok(reqwest::get(format!(
             "https://bmclapi2.bangbang93.com/forge/minecraft/{mcversion}"
         ))
-            .await?
-            .json::<Self>()
-            .await?)
+        .await?
+        .json::<Self>()
+        .await?)
     }
 }
+
+// #[tokio::test]
+// async fn test123123123() {
+//     // let minecraft_version = "1.20.1"
+//     let forge_version_list = ForgeVersionList::new().await.unwrap();
+//     let a = serde_json::to_string_pretty(&forge_version_list).unwrap();
+//     tokio::fs::write("1.json", a).await.unwrap();
+//     println!("{:#?}", forge_version_list);
+// }

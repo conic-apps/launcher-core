@@ -70,12 +70,6 @@ impl LoaderArtifactList {
     }
 }
 
-#[tokio::test]
-async fn test() {
-    let a = LoaderArtifactList::from_mcversion("1.20.1").await.unwrap();
-    println!("{:#?}", a);
-}
-
 impl FabricLoaderArtifact {
     /// get fabric loader artifact
     pub async fn new(mcversion: &str, loader: &str) -> Result<Self> {

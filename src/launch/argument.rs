@@ -18,7 +18,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    env::vars,
+    env,
     path::PathBuf,
 };
 
@@ -50,9 +50,8 @@ impl LaunchArguments {
     pub async fn from_launch_options(
         launch_options: LaunchOptions,
         version: ResolvedVersion,
+        platform: &PlatformInfo,
     ) -> Result<Self> {
-        // todo: if launch_options.game_path.is_absolute() { return Err(); }
-        let platform = PlatformInfo::new().await;
         let minecraft = MinecraftLocation::new(&launch_options.resource_path);
 
         let game_icon = match launch_options.game_icon.clone() {
@@ -74,7 +73,7 @@ impl LaunchArguments {
                 .to_string_lossy()
         ));
 
-        if platform.name == "osx" {
+        if platform.os_type == OsType::Osx {
             command_arguments.push(format!(
                 "-Xdock:name={game_name}",
                 game_name = launch_options.game_name
@@ -300,17 +299,12 @@ impl LaunchArguments {
                 ProcessPriority::BelowNormal => {
                     command.push_str("-n 15 ");
                 }
-                ProcessPriority::LOW => {
+                ProcessPriority::Low => {
                     command.push_str("-n 19 ");
                 }
             };
         }
         // todo(after java exec): add -Dfile.encoding=encoding.name() and other
-        // let launch_options = self.0.join(" ").to_string();
-        // command.arg(format!(
-        //     "{java} {launch_options}",
-        //     java = java_exec.binary.to_string_lossy().to_string()
-        // ));
         let mut launch_command = java_exec.binary.to_string_lossy().to_string();
         launch_command.push_str(" ");
         launch_command.push_str(&self.0.clone().join(" "));
@@ -339,7 +333,7 @@ impl LaunchArguments {
 
         let mut command = match platform.os_type {
             OsType::Windows => {
-                let vars = vars().find(|v| v.0 == "PATH").unwrap();
+                let vars = env::vars().find(|v| v.0 == "PATH").unwrap();
 
                 let path_vars = vars.1.as_str().split(";").collect::<Vec<&str>>(); // todo: test it in windows
                 let powershell_folder = PathBuf::from(

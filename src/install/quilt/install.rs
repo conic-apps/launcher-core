@@ -38,7 +38,6 @@ pub async fn install_quilt_version_json(
     let version_name = quilt_version.id.clone();
 
     let json_path = minecraft.get_version_json(&version_name);
-    // println!("{:?}", json_path);
     // let libraries = quilt_version.libraries.clone().unwrap();
     // let hashed = libraries.iter().find(|l| match l["name"].as_str() {
     //     None => false,

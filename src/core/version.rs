@@ -143,8 +143,8 @@ pub type AssetIndexObject = HashMap<String, AssetIndexObjectInfo>;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct LibraryDownload {
-    pub sha1: String,
-    pub size: u64,
+    pub sha1: Option<String>,
+    pub size: Option<u64>,
     pub url: String,
     pub path: String,
 }
@@ -481,7 +481,6 @@ impl Version {
 
         while versions.len() != 0 {
             let version = versions.pop().unwrap();
-            println!("{}", version.id);
             minimum_launcher_version = std::cmp::max(
                 version.minimum_launcher_version.unwrap_or(0),
                 minimum_launcher_version,
@@ -581,15 +580,14 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
         if classifiers.is_some() && natives.is_some() {
             let classifiers = classifiers.unwrap();
             let natives = natives.unwrap();
-            let classifier_key = natives[&platform.name].as_str();
-            if classifier_key.is_none() {
-                continue;
-            }
-            let classifier = classifiers[classifier_key.unwrap()].as_object();
-            if classifier.is_none() {
-                continue;
-            }
-            let classifier = classifier.unwrap();
+            let classifier_key = match natives[&platform.name].as_str() {
+                None => continue,
+                Some(x) => x,
+            };
+            let classifier = match classifiers[classifier_key].as_object() {
+                None => continue,
+                Some(x) => x,
+            };
             let url = match classifier["url"].as_str() {
                 Some(url) => url.to_string(),
                 None => continue,
@@ -600,8 +598,11 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
             };
             result.push(ResolvedLibrary {
                 download_info: LibraryDownload {
-                    sha1: classifier["sha1"].as_str().unwrap_or("").to_string(),
-                    size: classifier["size"].as_u64().unwrap_or(0),
+                    sha1: match classifier["sha1"].as_str() {
+                        Some(sha1) => Some(sha1.to_string()),
+                        None => None,
+                    },
+                    size: classifier["size"].as_u64(),
                     url,
                     path,
                 },
@@ -618,11 +619,11 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
             continue;
         }
         // resolve mod loader
-        let name = library["name"].as_str();
-        if name == None {
-            continue;
-        }
-        let name: Vec<&str> = name.unwrap().split(":").collect();
+        let name = match library["name"].as_str() {
+            None => continue,
+            Some(x) => x,
+        };
+        let name: Vec<&str> = name.split(":").collect();
         if name.len() != 3 {
             continue;
         }
@@ -638,8 +639,8 @@ async fn resolve_libraries(libraries: Vec<Value>, platform: &PlatformInfo) -> Ve
         let path = format!("{package}/{name}/{version}/{name}-{version}.jar");
         result.push(ResolvedLibrary {
             download_info: LibraryDownload {
-                sha1: "".to_string(),
-                size: 0,
+                sha1: None,
+                size: None,
                 url: format!("{url}{path}"),
                 path,
             },

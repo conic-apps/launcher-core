@@ -16,37 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// use std::str::FromStr;
-
-// use anyhow::anyhow;
-
-// use crate::core::{folder::MinecraftLocation, version::MinecraftVersion};
-
-// pub struct ForgeInstallOptions {}
-
-// impl Default for ForgeInstallOptions {
-//     fn default() -> Self {
-//         Self {  }
-//     }
-// }
-
-// // pub fn installation_preparation(options: Option<ForgeInstallOptions>) {}
-
-// pub fn install(forge_version: &str,minecraft_version: &str, minecraft_location: MinecraftLocation) {
-//     let minor_version = if let MinecraftVersion::Release(_, minor, _) = MinecraftVersion::from_str(minecraft_version).unwrap() {
-//         minor
-//     } else {
-//         // return Err(anyhow!(""));
-//         panic!("")
-//     };
-
-//     let forge_version = if minor_version >= 7 && minor_version <= 8 {
-//         format!("{mc}-{forge}-{mc}", mc=minecraft_version, forge=forge_version)
-//     } else {
-//         format!("{mc}-{forge}", mc=minecraft_version, forge=forge_version)
-//     };
-// }
-
 use std::{
     fs::File,
     io::{self, Read},
@@ -59,6 +28,7 @@ use std::{
 use anyhow::Result;
 use regex::Regex;
 use reqwest::Response;
+use tokio::io::AsyncWriteExt;
 use zip::ZipArchive;
 
 use crate::{
@@ -72,10 +42,7 @@ use crate::{
         legacy_install::install_legacy_forge_from_zip,
         new_install::unpack_forge_installer,
     },
-    utils::{
-        download::{download, Download},
-        unzip::filter_entries,
-    },
+    utils::unzip::filter_entries,
 };
 
 use super::*;
@@ -92,31 +59,35 @@ async fn download_forge_installer(
     // let forge_maven_path = path.replace("/maven", "").replace("maven", "");
     let sha1 = match &required_version.installer {
         Some(installer) => match &installer.sha1 {
-            Some(sha1) => String::from(sha1),
-            _ => String::new(),
+            Some(sha1) => Some(String::from(sha1)),
+            None => None,
         },
-        _ => String::new(),
+        None => None,
     };
     let library = LibraryDownload {
         url,
         path,
-        size: 0,
+        size: None,
         sha1,
     };
-    println!("{:#?}", library);
     let file_path = minecraft
         .get_library_by_path(&library.path)
         .to_str()
         .ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))
         .unwrap()
         .to_string();
-    let response = download(Download {
-        url: library.url,
-        file: file_path.clone(),
-        sha1: None,
-    })
-    .await;
-    Ok((file_path, response.unwrap()))
+    // let response = download(Download {
+    //     url: library.url,
+    //     file: file_path.clone(),
+    //     sha1: None,
+    // })
+    // .await;
+    let mut response = HTTP_CLIENT.get(library.url).send().await?;
+    let mut file = tokio::fs::File::create(&file_path).await?;
+    while let Some(chunk) = response.chunk().await.unwrap() {
+        file.write_all(&chunk).await.unwrap();
+    }
+    Ok((file_path, response))
 }
 
 async fn walk_forge_installer_entries<R: Read + io::Seek>(
@@ -291,6 +262,7 @@ fn get_forge_version(minor_version: u8, patch: Option<&str>, version: &RequiredV
     }
 }
 
+/// Find installer download link from forge website.
 pub async fn find_download_link(forge_version: &str, minecraft_version: &str) -> Result<String> {
     let document_url = format!(
         "https://files.minecraftforge.net/net/minecraftforge/forge/index_{minecraft_version}.html"
@@ -349,6 +321,12 @@ pub async fn find_download_link(forge_version: &str, minecraft_version: &str) ->
         .as_str();
     Ok(link.to_string())
 }
+
+// #[tokio::test]
+// async fn test() {
+//     let a = find_download_link("44.0.1", "1.19.3");
+//     println!("{}", a.await.unwrap());
+// }
 
 // #[tokio::test]
 // async fn test() {
